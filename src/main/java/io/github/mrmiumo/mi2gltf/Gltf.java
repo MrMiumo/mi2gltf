@@ -22,20 +22,20 @@ import io.github.mrmiumo.mi2gltf.textures.Material;
 import io.github.mrmiumo.mi2gltf.textures.Sampler;
 import io.github.mrmiumo.mi2gltf.textures.Texture;
 
+/**
+ * Main GLTF json file structure
+ */
 @JsonInclude(Include.NON_EMPTY)
 public class Gltf {
 
     /** Header of the file with the GLTF version and generator name */
-    private final Asset asset = new Asset("Miumo", "2.0");
-
-    /** Index of the default scene (0 by default) */
-    private int scene = 0;
+    private final Asset asset = new Asset("Mi²Gltf", "2.0");
 
     /** List of scenes (only one by default) */
-    private Scene[] scenes = new Scene[]{ new Scene("Scene") };
+    private final Scene[] scenes = new Scene[]{ new Scene("Scene") };
 
     /** List of nodes (one per cube) */
-    private ArrayList<Node> nodes = new ArrayList<>();
+    private final ArrayList<Node> nodes = new ArrayList<>();
 
     /** List of meshes (initialized during build) */
     private List<Mesh> meshes = List.of();
@@ -47,23 +47,29 @@ public class Gltf {
     private List<BufferView> views = List.of();
 
     /** List of buffers */
-    private HashMap<String, Buffer> buffers = new HashMap<>();
+    private final HashMap<String, Buffer> buffers = new HashMap<>();
     
 
     /** List of samplers (only one by default) */
-    private Sampler[] samplers = new Sampler[]{ Sampler.instance };
+    private final List<Sampler> samplers = new ArrayList<>();
 
     /** List of images */
-    private List<Image> images = new ArrayList<>();
+    private final List<Image> images = new ArrayList<>();
 
     /** List of textures */
-    private List<Texture> textures = new ArrayList<>();
+    private final List<Texture> textures = new ArrayList<>();
 
     /** List of materials */
-    private HashMap<Path, Material> materials = new HashMap<>();
+    private final HashMap<Path, Material> materials = new HashMap<>();
 
-    // materials
+    Gltf() {
+        samplers.add(Sampler.instance);
+    }
 
+    /**
+     * Prepare the data to be serialized into json.
+     * @return this Gltf
+     */
     public Gltf build() {
         /* Meshes */
         meshes = nodes.stream().map(Node::rawMesh).filter(Objects::nonNull).toList();
@@ -100,43 +106,90 @@ public class Gltf {
         return this;
     }
 
+    /**
+     * Gets the file header
+     * @return the asset section
+     */
     @JsonGetter
-    public Asset asset() { return asset; }
+    Asset asset() { return asset; }
 
+    /**
+     * Gets the index of the main scene
+     * @return the index of the main scene
+     */
     @JsonGetter
-    public int scene() { return scene; }
+    public int scene() { return 0; }
 
+    /**
+     * Gets the list of scenes
+     * @return the list of scenes
+     */
     @JsonGetter
     public Scene[] scenes() { return scenes; }
 
+    /**
+     * Gets the list of nodes
+     * @return the list of nodes
+     */
     @JsonGetter
     public List<Node> nodes() { return nodes; }
 
+    /**
+     * Gets the list of meshes
+     * @return the list of meshes
+     */
     @JsonGetter
     public List<Mesh> meshes() { return meshes; }
     
+    /**
+     * Gets the list of buffers
+     * @return the list of buffers
+     */
     @JsonGetter
     public Collection<Buffer> buffers() {
         return buffers.values().stream()
             .sorted(Comparator.comparingInt(Buffer::index))
             .toList();}
     
+    /**
+     * Gets the list of bufferViews
+     * @return the list of bufferViews
+     */
     @JsonGetter
     public List<BufferView> bufferViews() { return views; }
 
+    /**
+     * Gets the list of accessors
+     * @return the list of accessors
+     */
     @JsonGetter
     public List<Accessor> accessors() { return accessors; }
 
-
+    /**
+     * Gets the list of samplers
+     * @return the list of samplers
+     */
     @JsonGetter
-    public Sampler[] samplers() { return samplers; }
+    public List<Sampler> samplers() { return samplers; }
 
+    /**
+     * Gets the list of images
+     * @return the list of images
+     */
     @JsonGetter
     public List<Image> images() { return images; }
 
+    /**
+     * Gets the list of textures
+     * @return the list of textures
+     */
     @JsonGetter
     public List<Texture> textures() { return textures; }
 
+    /**
+     * Gets the list of materials
+     * @return the list of materials
+     */
     @JsonGetter
     public Collection<Material> materials() {
         return materials.values().stream()
@@ -179,20 +232,9 @@ public class Gltf {
     }
 
     /**
-     * Finds a material with the given path or creates a new one if not
-     * existing yet.
-     * @param path the path of the material to get (image)
-     * @return the material
+     * Format of the file header
+     * @param generator author mark
+     * @param version GLTF file version
      */
-    public Material getMaterial(Path path) {
-        return materials.computeIfAbsent(path, p -> {
-            var image = new Image(p, images.size());
-            images.add(image);
-            var texture = new Texture(image, textures.size());
-            textures.add(texture);
-            return new Material(texture, materials.size());
-        });
-    }
-
     private record Asset(String generator, String version) {}
 }

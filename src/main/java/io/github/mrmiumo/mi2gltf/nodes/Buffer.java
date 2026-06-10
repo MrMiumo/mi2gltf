@@ -8,6 +8,10 @@ import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.github.mrmiumo.mi2gltf.nodes.BufferView.Target;
 
+/**
+ * Binary buffer that contains all mesh positions, normals, textures
+ * mapping and indices.
+ */
 public class Buffer {
 
     private int index = -1;
@@ -69,14 +73,26 @@ public class Buffer {
         return this;
     }
 
+    /**
+     * Gets the index of this buffer in the buffers array
+     * @return the index of this buffer
+     */
     public int index() { return index; }
 
+    /**
+     * Converts this buffer into a base64 URI containing all its data
+     * @return the buffer as a base64 URI
+     */
     @JsonGetter
     public String uri() {
         return "data:application/octet-stream;base64,"
             + Base64.getEncoder().encodeToString(data);
     }
 
+    /**
+     * The amount of bytes stored in the buffer
+     * @return the size of the buffer in bytes
+     */
     @JsonGetter
     public int byteLength() {
         return views.stream().mapToInt(BufferView::byteLength).sum();

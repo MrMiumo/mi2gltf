@@ -9,6 +9,9 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
 import io.github.mrmiumo.mi2gltf.Vec;
 
+/**
+ * Represents an element of the model (a cube here)
+ */
 @JsonInclude(Include.NON_NULL)
 public class Node {
     private int index = -1;
@@ -29,6 +32,10 @@ public class Node {
         return this;
     }
 
+    /**
+     * Gets the index of the this node in the nodes array
+     * @return the index of the this node
+     */
     public int index() { return index; }
 
     /**
@@ -61,10 +68,18 @@ public class Node {
         return this;
     }
 
+    /**
+     * Gets the mesh of this node as a Java object
+     * @return the mesh object
+     */
     public Mesh rawMesh() {
         return mesh;
     }
 
+    /**
+     * Gets the index of this node mesh
+     * @return the index of this node mesh
+     */
     @JsonGetter
     public Integer mesh() {
         return mesh == null ? null : mesh.index();
@@ -80,6 +95,10 @@ public class Node {
         return this;
     }
 
+    /**
+     * Gets the vector (nullable) of the translation of this node mesh
+     * @return the translation vector of this node mesh
+     */
     @JsonGetter
     public float[] translation() {
         return translation == null ? null : translation.toArray();
@@ -95,6 +114,10 @@ public class Node {
         return this;
     }
 
+    /**
+     * Gets the quaternion (nullable) of the rotation of this node mesh
+     * @return the rotation quaternion of this node mesh
+     */
     @JsonGetter
     public float[] rotation() {
         return rotation;
@@ -110,6 +133,10 @@ public class Node {
         return this;
     }
 
+    /**
+     * Gets this node children indexes.
+     * @return this node children indexes
+     */
     @JsonGetter
     @SuppressWarnings("java:S1168")
     public int[] children() {

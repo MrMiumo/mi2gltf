@@ -6,6 +6,9 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import io.github.mrmiumo.mi2gltf.ByteArray;
 
+/**
+ * Sort of masks used to read chunks of BufferViews.
+ */
 @JsonInclude(Include.NON_EMPTY)
 public class Accessor {
     
@@ -153,8 +156,16 @@ public class Accessor {
         return this;
     }
 
+    /**
+     * Gets the index of this accessor in the global accessors array
+     * @return the index of this accessor
+     */
     public int index() { return index; }
 
+    /**
+     * Index of the BufferView to read bytes from.
+     * @return the index of the buffer view
+     */
     @JsonGetter
     public int bufferView() {
         return bufferView.index();
@@ -170,51 +181,91 @@ public class Accessor {
         return this;
     }
 
+    /**
+     * Number of bytes of the BufferView to skip before starting to
+     * read bytes of the accessor.
+     * @return the offsets in bytes
+     */
     @JsonGetter
     public Integer byteOffset() {
         return byteOffset == 0 ? null : byteOffset;
     }
 
+    /**
+     * The type of numbers read by this accessor
+     * @return the value corresponding to the set component type
+     */
     @JsonGetter
     public int componentType() {
         return componentType.value;
     }
 
+    /**
+     * The number of elements (of type 'Type') contained in this accessor
+     * @return the number of elements contained in the accessor
+     */
     @JsonGetter
     public int count() {
         return count;
     }
 
+    /**
+     * The layout of values that defines an element that can be red
+     * by the accessor.
+     * @return the layout of this accessor values
+     */
     @JsonGetter
     public String type() {
         return type.name();
     }
 
+    /**
+     * The smallest combined element of this accessor
+     * @return the smallest value(s) of this accessor
+     */
     @JsonGetter
     public float[] min() {
         return min;
     }
 
+    /**
+     * The greatest combined element of this accessor
+     * @return the greatest value(s) of this accessor
+     */
     @JsonGetter
     public float[] max() {
         return max;
     }
 
 
+    /**
+     * Type of number read by the accessor
+     */
     public enum ComponentType {
+        /** An unsigned short on 2 bytes */
         UNSIGNED_SHORT(5123),
+        /** A float on 4 bytes */
         FLOAT(5126);
 
+        /** The GLTF code that correspond to this component type */
         public final int value;
         ComponentType(int value) { this.value = value; }
     }
 
+    /**
+     * Layout of numbers read by the accessor
+     */
     public enum Type {
-        SCALAR(1), // One number
-        VEC2(2),   // A vector of 2 numbers
-        VEC3(3);   // A vector of 3 numbers
-        // MAT4(16);   // A 4x4 matrice
+        /** Element that is made of a single number */
+        SCALAR(1),
 
+        /** Element that is a vector of two numbers */
+        VEC2(2),
+
+        /** Element that is a vector of three numbers */
+        VEC3(3);
+
+        /** The amount of number contained by this type */
         public final int size;
         Type(int size) { this.size = size; }
     }

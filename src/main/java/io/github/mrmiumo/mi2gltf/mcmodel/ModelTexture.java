@@ -10,14 +10,31 @@ import java.nio.file.Path;
 
 import javax.imageio.ImageIO;
 
+/**
+ * Utility class that holds Minecraft model texture informations
+ */
 public class ModelTexture {
+    /** The default '#missing' texture */
     public static final ModelTexture MISSING = new ModelTexture("#missing");
+    
+    /** The default '#transparent' texture */
     public static final ModelTexture TRANSPARENT = new ModelTexture("#transparent");
     private final Path path;
+
+    /** The image data */
     public final BufferedImage img;
+
+    /** The width of the image in pixels */
     public final int width;
+
+    /** The height of the image in pixels */
     public final int height;
     
+    /**
+     * Creates a new texture from the given texture path.
+     * @param path the path of an existing image file
+     * @return the model texture (or the '#missing' texture if null)
+     */
     public static ModelTexture from(Path path) {
         if (path == null) return MISSING;
 
@@ -81,10 +98,22 @@ public class ModelTexture {
         }
     }
 
+    /**
+     * The path of the texture (may start by # for default textures)
+     * @return the path of the texture file
+     */
     public Path path() { return path; }
 
+    /**
+     * The height of the texture image in pixels
+     * @return the height of the texture
+     */
     public int height() { return height; }
 
+    /**
+     * The width of the texture image in pixels
+     * @return the width of the texture
+     */
     public int width() { return width; }
 
     @Override
@@ -101,10 +130,9 @@ public class ModelTexture {
     }
 
     /**
-     * Gets the pixels of the image as an array. This is sightly
+     * Gets the pixels of this image as an array. This is sightly
      * faster than calling {@link BufferedImage#getRGB(int, int)} each
      * time.
-     * @param image the image to get pixels from
      * @return all the pixels of the image
      */
     public int[] pixels() {

@@ -9,6 +9,10 @@ import java.util.HashMap;
 import io.github.mrmiumo.mi2gltf.mcmodel.ModelTexture;
 import io.github.mrmiumo.mi2gltf.mcmodel.Cube.Face;
 
+/**
+ * Utility class that enables to combine all textures into one larger one.
+ * This enables to have multiple textures on a single mesh.
+ */
 public class Atlas {
 
     private final HashMap<ModelTexture, Position> images = new HashMap<>();
@@ -114,6 +118,19 @@ public class Atlas {
         return img;
     }
 
+    /**
+     * DataClass to return UV after conversion into Atlas coordinates space
+     * @param fromX the percentage of the atlas width where the area starts
+     * @param fromY the percentage of the atlas height where the area starts
+     * @param toX the percentage of the atlas height where the area ends
+     * @param toY the percentage of the atlas height where the area ends
+     */
     public record Uv(float fromX, float fromY, float toX, float toY) {}
+
+    /**
+     * The position of an image in the Atlas
+     * @param x the x coordinate (from the left)
+     * @param y the y coordinate (from the top)
+     */
     public record Position(int x, int y) {}
 }

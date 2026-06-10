@@ -15,6 +15,10 @@ import javax.imageio.ImageIO;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
 
+/**
+ * A link or the data of an image, that can then be used in a Texture
+ * using a Sampler.
+ */
 public class Image {
 
     private static final Map<String, String> MIMES;
@@ -35,20 +39,38 @@ public class Image {
 
     private final BufferedImage img;
 
+    /**
+     * Creates a new image from a file path
+     * @param path the path of the image
+     * @param index the index of this image in the images array
+     */
     public Image(Path path, int index) {
         this.path = Objects.requireNonNull(path);
         this.index = index;
         img = null;
     }
 
+    /**
+     * Creates a new image from a BufferedImage
+     * @param img the data of the image
+     * @param index the index of this image in the images array
+     */
     public Image(BufferedImage img, int index) {
         this.path = null;
         this.index = index;
         this.img = Objects.requireNonNull(img);
     }
 
+    /**
+     * Gets the index of this image in the images array
+     * @return the index of this image
+     */
     public int index() { return index; }
 
+    /**
+     * Converts the data of this image into a base64 URI
+     * @return the base64 URI of the image data
+     */
     @JsonGetter
     public String uri() {
         try {

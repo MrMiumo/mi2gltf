@@ -31,6 +31,9 @@ import io.github.mrmiumo.mi2gltf.nodes.Node;
 import io.github.mrmiumo.mi2gltf.textures.Atlas;
 import io.github.mrmiumo.mi2gltf.textures.Material;
 
+/**
+ * Main class used to convert from Minecraft models to GLTF files.
+ */
 public class GltfBuilder {
     /** Oh no, a logger... Just kidding, its fine! */
     private static final Logger LOGGER = LoggerFactory.getLogger(GltfBuilder.class);
@@ -295,16 +298,5 @@ public class GltfBuilder {
      */
     public static void setDefaultPack(Path location) {
         ModelParser.setDefaultPack(location);
-    }
-
-
-    public static void main(String[] args) throws IOException {
-        ModelParser.setDefaultPack(Path.of(System.getProperty("user.home") + "/AppData/Roaming/.minecraft/resourcepacks/Default-Texture-Pack-1.20.4"));
-        // var model = Path.of("model.json");
-        var model = Path.of("assets/minecraft/models/item/backpack/buzz.json");
-        
-        GltfBuilder.from(model)
-            .prettify()
-            .save(Path.of("cube.gltf"));
     }
 }
