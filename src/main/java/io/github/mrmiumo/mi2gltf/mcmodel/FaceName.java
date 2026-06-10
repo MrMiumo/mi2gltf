@@ -1,4 +1,4 @@
-package io.github.mrmiumo.mi2gltf;
+package io.github.mrmiumo.mi2gltf.mcmodel;
 
 public enum FaceName {
     FRONT("north"),

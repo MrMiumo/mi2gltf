@@ -11,12 +11,12 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
-
 import io.github.mrmiumo.mi2gltf.nodes.Accessor;
 import io.github.mrmiumo.mi2gltf.nodes.Buffer;
 import io.github.mrmiumo.mi2gltf.nodes.BufferView;
 import io.github.mrmiumo.mi2gltf.nodes.Mesh;
 import io.github.mrmiumo.mi2gltf.nodes.Node;
+import io.github.mrmiumo.mi2gltf.textures.Atlas;
 import io.github.mrmiumo.mi2gltf.textures.Image;
 import io.github.mrmiumo.mi2gltf.textures.Material;
 import io.github.mrmiumo.mi2gltf.textures.Sampler;
@@ -158,6 +158,24 @@ public class Gltf {
         buffer = new Buffer().setIndex(buffers.size());
         buffers.put(key, buffer);
         return buffer;
+    }
+
+    /**
+     * Creates a new material from the given atlas
+     * @param atlas the atlas to save
+     * @return the corresponding Material
+     */
+    public Material setAtlas(Atlas atlas) {
+        var image = new Image(atlas.image(), images.size());
+        images.add(image);
+
+        var texture = new Texture(image, textures.size());
+        textures.add(texture);
+
+        var material = new Material(texture, materials.size());
+        materials.put(Path.of("#atlas"), material);
+
+        return material;
     }
 
     /**

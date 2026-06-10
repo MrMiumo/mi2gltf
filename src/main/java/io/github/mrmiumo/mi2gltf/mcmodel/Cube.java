@@ -1,7 +1,9 @@
-package io.github.mrmiumo.mi2gltf;
+package io.github.mrmiumo.mi2gltf.mcmodel;
 
 import java.util.Collection;
 import java.util.EnumMap;
+
+import io.github.mrmiumo.mi2gltf.Vec;
 
 public class Cube {
 

@@ -1,5 +1,6 @@
 package io.github.mrmiumo.mi2gltf.textures;
 
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -12,7 +13,6 @@ import java.util.Map;
 import javax.imageio.ImageIO;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
-import io.github.mrmiumo.mi2gltf.ModelTexture;
 
 public class Image {
 
@@ -32,31 +32,56 @@ public class Image {
 
     private final Path path;
 
+    private final BufferedImage img;
+
     public Image(Path path, int index) {
         this.path = path;
         this.index = index;
+        img = null;
+    }
+
+    public Image(BufferedImage img, int index) {
+        this.path = null;
+        this.index = index;
+        this.img = img;
     }
 
     public int index() { return index; }
 
     @JsonGetter
     public String uri() {
-        var filename = path.getFileName().toString();
-        var pos = filename.lastIndexOf(".") + 1;
-        var ext = filename.substring(pos).toLowerCase();
         try {
-            if (path.toString().startsWith("#")) {
-                var texture = "#missing".equals(path.toString()) ? ModelTexture.MISSING : ModelTexture.TRANSPARENT;
-                var stream = new ByteArrayOutputStream();
-                ImageIO.write(texture.img, "png", stream);
-                return "data:" + MIMES.get("png") + ";base64,"
-                    + Base64.getEncoder().encodeToString(stream.toByteArray());
-            } else {
-                return "data:" + MIMES.get(ext) + ";base64,"
-                    + Base64.getEncoder().encodeToString(Files.readAllBytes(path));
-            }
+            if (path == null) return uriFromImage();
+            return uriFromPath();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /**
+     * Builds a base64 uri that contains the file data using the set
+     * BufferedImage.
+     * @return the data of the image as base64 URI
+     * @throws IOException in case of error while writing the image
+     */
+    private String uriFromImage() throws IOException {
+        var stream = new ByteArrayOutputStream();
+        ImageIO.write(img, "png", stream);
+        return "data:" + MIMES.get("png") + ";base64,"
+            + Base64.getEncoder().encodeToString(stream.toByteArray());
+    }
+    
+    /**
+     * Builds a base64 uri that contains the file data using the set
+     * path.
+     * @return the data of the path as base64 URI
+     * @throws IOException in case of error while reading the file
+     */
+    private String uriFromPath() throws IOException {
+        var filename = path.getFileName().toString();
+        var pos = filename.lastIndexOf(".") + 1;
+        var ext = filename.substring(pos).toLowerCase();
+        return "data:" + MIMES.get(ext) + ";base64,"
+            + Base64.getEncoder().encodeToString(Files.readAllBytes(path));
     }
 }

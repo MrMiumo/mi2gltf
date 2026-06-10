@@ -1,6 +1,6 @@
 package io.github.mrmiumo.mi2gltf;
 
-import static io.github.mrmiumo.mi2gltf.FaceName.*;
+import static io.github.mrmiumo.mi2gltf.mcmodel.FaceName.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -13,13 +13,19 @@ import com.fasterxml.jackson.core.PrettyPrinter;
 import com.fasterxml.jackson.core.util.DefaultIndenter;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.mrmiumo.mi2gltf.Cube.Face;
+
+import io.github.mrmiumo.mi2gltf.mcmodel.Cube;
+import io.github.mrmiumo.mi2gltf.mcmodel.FaceName;
+import io.github.mrmiumo.mi2gltf.mcmodel.ModelParser;
+import io.github.mrmiumo.mi2gltf.mcmodel.ModelTexture;
+import io.github.mrmiumo.mi2gltf.mcmodel.Cube.Face;
 import io.github.mrmiumo.mi2gltf.nodes.Accessor;
 import io.github.mrmiumo.mi2gltf.nodes.Accessor.ComponentType;
 import io.github.mrmiumo.mi2gltf.nodes.Accessor.Type;
 import io.github.mrmiumo.mi2gltf.nodes.BufferView.Target;
 import io.github.mrmiumo.mi2gltf.nodes.Mesh;
 import io.github.mrmiumo.mi2gltf.nodes.Node;
+import io.github.mrmiumo.mi2gltf.textures.Atlas;
 import io.github.mrmiumo.mi2gltf.textures.Material;
 
 public class GltfBuilder {
@@ -28,10 +34,36 @@ public class GltfBuilder {
     private final Gltf gltf = new Gltf();
     private final Accessor indicesAcc = indicesAccessor();
     private final Accessor normalsAcc = normalsAccessor();
+    private final Atlas atlas;
+    private final Material atlasMaterial;
 
     private boolean pretty = false;
 
-    public GltfBuilder add(Cube cube) {
+    /**
+     * Loads a minecraft model from a pack and convert it into a
+     * GLTF model.
+     * @param model path to the model file (json)
+     * @return the builder to output the GLTF raw or formatted
+     * @throws IOException in case of error while loading the file
+     */
+    public static GltfBuilder from(Path model) throws IOException {
+        var cubes = new ModelParser().parse(model);
+        return new GltfBuilder(cubes);
+    }
+
+    private GltfBuilder(Collection<Cube> cubes) {
+        var textures = cubes.stream()
+            .flatMap(c -> c.faces().stream())
+            .map(Face::texture)
+            .distinct()
+            .toList();
+        atlas = new Atlas(textures);
+        atlasMaterial = gltf.setAtlas(atlas);
+
+        cubes.forEach(this::add);
+    }
+
+    private GltfBuilder add(Cube cube) {
         final var nodes = gltf.nodes();
 
         if (cube.axis() == 0) {
@@ -77,14 +109,8 @@ public class GltfBuilder {
             fx, ty, tz,  fx, ty, tz,  fx, ty, tz  // (7) Back Top Left
         );
 
-        Material material = null;
-        Accessor texturesAcc = null;
-        if (!faces.isEmpty()) {
-            var texture = faces.iterator().next().texture();
-            material = gltf.getMaterial(texture.path());
-            texturesAcc = uvs(faces);
-        }
-        return new Mesh(indicesAcc, positionsAcc, normalsAcc, texturesAcc, material);
+        var texturesAcc = uvs(faces);
+        return new Mesh(indicesAcc, positionsAcc, normalsAcc, texturesAcc, atlasMaterial);
     }
 
     private Accessor uvs(Collection<Face> faces) {
@@ -100,7 +126,7 @@ public class GltfBuilder {
         uv(acc, map.get(LEFT), 1, 0);   // (1) LEFT - Front Bottom
         uv(acc, map.get(BOTTOM), 1, 0); // (2) BOTTOM - Front Left
         uv(acc, map.get(FRONT), 1, 0);  // (3) FRONT - Bottom Right
-        uv(acc, map.get(FRONT), 0, 0);  // (4) BOTTOM - Front Right
+        uv(acc, map.get(BOTTOM), 0, 0); // (4) BOTTOM - Front Right
         uv(acc, map.get(RIGHT), 0, 0);  // (5) RIGHT - Front Bottom
         uv(acc, map.get(FRONT), 1, 1);  // (6) FRONT - Top Right
         uv(acc, map.get(RIGHT), 0, 1);  // (7) RIGHT - Front Top
@@ -109,9 +135,9 @@ public class GltfBuilder {
         uv(acc, map.get(LEFT), 1, 1);   // (10) LEFT - Front Top
         uv(acc, map.get(TOP), 1, 1);    // (11) TOP - Front Left
         uv(acc, map.get(LEFT), 0, 0);   // (12) LEFT - Back Bottom
-        uv(acc, map.get(FRONT), 1, 1);  // (13) BOTTOM - Back Left
+        uv(acc, map.get(BOTTOM), 1, 1); // (13) BOTTOM - Back Left
         uv(acc, map.get(BACK), 1, 0);   // (14) BACK - Bottom Left
-        uv(acc, map.get(FRONT), 0, 1);  // (15) BOTTOM - Back Right
+        uv(acc, map.get(BOTTOM), 0, 1); // (15) BOTTOM - Back Right
         uv(acc, map.get(BACK), 0, 0);   // (16) BACK - Bottom Right
         uv(acc, map.get(RIGHT), 1, 0);  // (17) RIGHT - Back Bottom
         uv(acc, map.get(BACK), 0, 1);   // (18) BACK - Top Right
@@ -125,21 +151,23 @@ public class GltfBuilder {
     }
 
     private void uv(Accessor acc, Face face, int w, int h) {
-        var rotate = face.rotation();
+        var rotate = face.rotation() % 4;
+        var uv = atlas.get(face);
+        
         float u;
         float v;
         if (rotate == 0) {
-            u = face.fromX() * w + face.toX() * (1-w);
-            v = face.fromY() * h + face.toY() * (1-h);
+            u = uv.fromX() * w + uv.toX() * (1-w);
+            v = uv.fromY() * h + uv.toY() * (1-h);
         } else if (rotate == 1) {
-            u = face.fromX() * h + face.toX() * (1-h);
-            v = face.fromY() * (1-w) + face.toY() * w;
+            u = uv.fromX() * h + uv.toX() * (1-h);
+            v = uv.fromY() * (1-w) + uv.toY() * w;
         } else if (rotate == 2) {
-            u = face.fromX() * (1-w) + face.toX() * w;
-            v = face.fromY() * (1-h) + face.toY() * h;
+            u = uv.fromX() * (1-w) + uv.toX() * w;
+            v = uv.fromY() * (1-h) + uv.toY() * h;
         } else {
-            u = face.fromX() * (1-h) + face.toX() * h;
-            v = face.fromY() * w + face.toX() * (1-w);
+            u = uv.fromX() * (1-h) + uv.toX() * h;
+            v = uv.fromY() * w + uv.toY() * (1-w);
         }
         acc.add(u, v);
     }
@@ -221,6 +249,16 @@ public class GltfBuilder {
         return this;
     }
 
+    /**
+     * Saves this GLTF file into a file
+     * @param p the path of the file to save the model under
+     * @return the path
+     * @throws IOException in case of error while writing the file
+     */
+    public Path save(Path p) throws IOException {
+        return Files.writeString(p, this.toString());
+    }
+
     @Override
     public String toString() {
         gltf.build();
@@ -245,15 +283,12 @@ public class GltfBuilder {
 
 
     public static void main(String[] args) throws IOException {
-        var data = new GltfBuilder()
-            .prettify();
-
-        // var model = new ModelParser().parse(Path.of("model.json"));
-        var model = new ModelParser().parse(Path.of("assets/minecraft/models/item/backpack/buzz.json"));
-        for (var cube : model) data.add(cube);
-
-        var asStr = data.toString();
-        System.out.println(asStr);
-        Files.writeString(Path.of("cube.gltf"), asStr);
+        ModelParser.setDefaultPack(Path.of(System.getProperty("user.home") + "/AppData/Roaming/.minecraft/resourcepacks/Default-Texture-Pack-1.20.4"));
+        // var model = Path.of("model.json");
+        var model = Path.of("assets/minecraft/models/item/backpack/buzz.json");
+        
+        GltfBuilder.from(model)
+            .prettify()
+            .save(Path.of("cube.gltf"));
     }
 }
