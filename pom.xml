@@ -6,7 +6,7 @@
     <artifactId>mi2gltf</artifactId>
     <version>1.0.0</version>
     <name>${project.groupId}:${project.artifactId}</name>
-    <description>Miumo's Minecraft Model converter to GLTF</description>
+    <description>Miumo's Minecraft converter to GLTF</description>
     <url>https://github.com/MrMiumo/mi2gltf</url>
     <inceptionYear>2026</inceptionYear>
     <packaging>jar</packaging>
@@ -17,7 +17,7 @@
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
-            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
         </license>
     </licenses>
 
@@ -32,7 +32,7 @@
     <scm>
         <connection>scm:git:git://github.com/MrMiumo/Mi2gltf.git</connection>
         <developerConnection>scm:git:ssh://github.com:MrMiumo/Mi2gltf.git</developerConnection>
-        <url>http://github.com/MrMiumo/Mi2gltf</url>
+        <url>https://github.com/MrMiumo/Mi2gltf</url>
     </scm>
 
     <distributionManagement>
@@ -60,6 +60,12 @@
             <artifactId>junit-jupiter</artifactId>
             <version>6.1.0</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.18</version>
+            <scope>provided</scope> 
         </dependency>
     </dependencies>
 
