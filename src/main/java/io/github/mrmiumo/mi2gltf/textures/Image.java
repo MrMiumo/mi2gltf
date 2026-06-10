@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 import javax.imageio.ImageIO;
 
@@ -35,7 +36,7 @@ public class Image {
     private final BufferedImage img;
 
     public Image(Path path, int index) {
-        this.path = path;
+        this.path = Objects.requireNonNull(path);
         this.index = index;
         img = null;
     }
@@ -43,7 +44,7 @@ public class Image {
     public Image(BufferedImage img, int index) {
         this.path = null;
         this.index = index;
-        this.img = img;
+        this.img = Objects.requireNonNull(img);
     }
 
     public int index() { return index; }

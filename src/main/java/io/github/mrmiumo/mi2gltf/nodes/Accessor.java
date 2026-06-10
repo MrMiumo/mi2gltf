@@ -24,7 +24,7 @@ public class Accessor {
     /** The type of values stored */
     private final ComponentType componentType;
 
-    private ByteArray data = new ByteArray();
+    private final ByteArray data = new ByteArray();
 
     /** The minimal value(s) of this accessor */
     private final float[] min;

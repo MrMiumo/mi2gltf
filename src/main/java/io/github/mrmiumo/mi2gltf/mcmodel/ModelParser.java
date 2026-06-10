@@ -9,6 +9,9 @@ import java.util.List;
 import java.util.Properties;
 import java.util.function.Function;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.io.IOException;
@@ -28,15 +31,17 @@ import io.github.mrmiumo.mi2gltf.Vec;
  * corresponding to the default minecraft resource pack.
  */
 public class ModelParser {
-
+    /** Hmm, not sure but it seems like a logger... */
+    private static final Logger LOGGER = LoggerFactory.getLogger(ModelParser.class);
+    
     /** The mapper used to decode JSON */
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    /** List of parsed cubes */
-    private static HashSet<Cube> cubes = new HashSet<>();
-
     /** Path of the default textures if set in 'default.minecraft.pack' */
     private static Path defaultTextures = loadProperty();
+
+    /** List of parsed cubes */
+    private final HashSet<Cube> cubes = new HashSet<>();
 
     /** Lists of all textures with their ID and image */
     private final HashMap<String, TextureHolder> textures = new HashMap<>();
@@ -119,7 +124,6 @@ public class ModelParser {
      * in the default vanilla textures.
      * @param name the name of the texture such as 'block/bricks'
      * @return the texture or null if not found
-     * @throws IOException in case of error while reading the files
      */
     private ModelTexture loadTexture(String name) {
 
@@ -191,7 +195,7 @@ public class ModelParser {
                 var axis = rotation.get("axis").asText().charAt(0);
                 cube.rotate((float)angle.asDouble(), axis);
             } else {
-                System.err.println("Unsupported rotation format!!!");
+                LOGGER.warn("Unsupported rotation format encountered!!!");
             }
         }
 
@@ -319,7 +323,7 @@ public class ModelParser {
      * @param depth the depth of the cube (z axis)
      * @return the cube!
      */
-    private static Cube generateCube(ModelTexture texture, int x, int y, int w, int h, int depth) {
+    private static Cube generateCube(ModelTexture texture, float x, float y, float w, float h, int depth) {
         var u = 16f / texture.width;
         var v = 16f / texture.height;
 
@@ -366,7 +370,9 @@ public class ModelParser {
                 var path = Path.of(prop).resolve("assets/minecraft/textures");
                 return Files.exists(path) ? path : null;
             }
-        } catch (IOException e) {}
+        } catch (IOException e) {
+            LOGGER.info("Failed load 'default.minecraft.pack' property.\nConsider adding it or set it manually using ModelParser.setDefaultPack()");
+        }
         return null;
     }
 

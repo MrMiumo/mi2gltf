@@ -1,5 +1,6 @@
 package io.github.mrmiumo.mi2gltf;
 
+import java.util.Arrays;
 import java.util.HashSet;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
@@ -18,7 +19,7 @@ public class Scene {
      * @return this scene
      */
     public Scene addNodes(Node... nodes) {
-        for (var node : nodes) this.nodes.add(node);
+        this.nodes.addAll(Arrays.asList(nodes));
         return this;
     }
     

@@ -15,7 +15,7 @@ public class Node {
     private Mesh mesh = null;
     private Vec translation = null;
     private float[] rotation = null;
-    private ArrayList<Node> children = new ArrayList<>();
+    private final ArrayList<Node> children = new ArrayList<>();
 
     private boolean referenced = true;
 

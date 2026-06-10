@@ -18,7 +18,7 @@ public class Material {
     public int index() { return index; }
 
     @JsonGetter
-    public Pbr pbrMetallicRoughness() { return pbrMetallicRoughness; }
+    Pbr pbrMetallicRoughness() { return pbrMetallicRoughness; }
 
     @JsonGetter
     public String alphaMode() { return "MASK"; }

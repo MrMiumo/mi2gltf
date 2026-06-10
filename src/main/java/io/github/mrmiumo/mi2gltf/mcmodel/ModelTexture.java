@@ -25,7 +25,7 @@ public class ModelTexture {
         var w = img.getWidth();
         var h = img.getHeight();
 
-        if (Files.exists(Path.of(path.toString() + ".mcmeta"))) {
+        if (Files.exists(Path.of(path + ".mcmeta"))) {
             /* Animated texture */
             h = w;
             var crop = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);

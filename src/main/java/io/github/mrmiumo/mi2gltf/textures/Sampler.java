@@ -7,11 +7,6 @@ public class Sampler {
 
     public static final Sampler instance = new Sampler();
 
-    // Already using default values = 10497!
-    // private final int wrapS = 10497; // REPEAT(10497) or CLAMP_TO_EDGE(33071) or MIRRORED_REPEAT(33648)
-    // private final int wrapT = 10497; // REPEAT(10497) or CLAMP_TO_EDGE(33071) or MIRRORED_REPEAT(33648)
-
-
     public int index() { return 0; }
 
     @JsonGetter

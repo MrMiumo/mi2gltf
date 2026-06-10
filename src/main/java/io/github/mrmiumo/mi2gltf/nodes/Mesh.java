@@ -35,7 +35,7 @@ public class Mesh {
     public int index() { return index; }
 
     @JsonGetter
-    public Primitive[] primitives() {
+    Primitive[] primitives() {
         return new Primitive[] {
             new Primitive(
                 new Attributes(positions.index(), normals.index(), textures.index()),

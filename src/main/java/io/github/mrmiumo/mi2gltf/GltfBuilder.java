@@ -8,6 +8,9 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.EnumMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.PrettyPrinter;
 import com.fasterxml.jackson.core.util.DefaultIndenter;
@@ -29,6 +32,9 @@ import io.github.mrmiumo.mi2gltf.textures.Atlas;
 import io.github.mrmiumo.mi2gltf.textures.Material;
 
 public class GltfBuilder {
+    /** Oh no, a logger... Just kidding, its fine! */
+    private static final Logger LOGGER = LoggerFactory.getLogger(GltfBuilder.class);
+    
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private final Gltf gltf = new Gltf();
@@ -267,7 +273,7 @@ public class GltfBuilder {
                 ? JSON.writer(getPrettifier()).writeValueAsString(gltf)
                 : JSON.writeValueAsString(gltf);
         } catch (JsonProcessingException e) {
-            e.printStackTrace();
+            LOGGER.error("Failed to generate GLTF file", e);
             return "{}";
         }
     }
@@ -276,10 +282,20 @@ public class GltfBuilder {
         var indenter = new DefaultIndenter("    ", DefaultIndenter.SYS_LF);
         var printer = new DefaultPrettyPrinter();
         printer.indentObjectsWith(indenter);
+        printer.indentArraysWith(indenter);
 
         return printer;
     }
 
+    /**
+     * Sets the path of the default resource pack folder. If the
+     * 'default.minecraft.pack' property is already defined, no need
+     * to use this function!
+     * @param location the path of the default minecraft resource pack
+     */
+    public static void setDefaultPack(Path location) {
+        ModelParser.setDefaultPack(location);
+    }
 
 
     public static void main(String[] args) throws IOException {
