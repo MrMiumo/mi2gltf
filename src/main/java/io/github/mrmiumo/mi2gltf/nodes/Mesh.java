@@ -1,4 +1,4 @@
-package io.github.mrmiumo.mi2gltf;
+package io.github.mrmiumo.mi2gltf.nodes;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -47,4 +47,3 @@ public class Mesh {
 
     private record Attributes(int POSITION, int NORMAL) {}
 }
-

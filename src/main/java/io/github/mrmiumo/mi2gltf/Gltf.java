@@ -8,6 +8,12 @@ import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
 
+import io.github.mrmiumo.mi2gltf.nodes.Accessor;
+import io.github.mrmiumo.mi2gltf.nodes.Buffer;
+import io.github.mrmiumo.mi2gltf.nodes.BufferView;
+import io.github.mrmiumo.mi2gltf.nodes.Mesh;
+import io.github.mrmiumo.mi2gltf.nodes.Node;
+
 public class Gltf {
 
     /** Header of the file with the GLTF version and generator name */
@@ -111,5 +117,7 @@ public class Gltf {
         buffers.put(key, buffer);
         return buffer;
     }
+    
+    private record Asset(String generator, String version) {}
 }
 

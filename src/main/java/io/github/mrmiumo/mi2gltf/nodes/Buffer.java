@@ -1,4 +1,4 @@
-package io.github.mrmiumo.mi2gltf;
+package io.github.mrmiumo.mi2gltf.nodes;
 
 import java.util.Base64;
 import java.util.Collection;
@@ -6,7 +6,7 @@ import java.util.HashSet;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.github.mrmiumo.mi2gltf.BufferView.Target;
+import io.github.mrmiumo.mi2gltf.nodes.BufferView.Target;
 
 public class Buffer {
 

@@ -4,6 +4,8 @@ import java.util.HashSet;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
 
+import io.github.mrmiumo.mi2gltf.nodes.Node;
+
 public class Scene {
     private final String name;
     private final HashSet<Node> nodes = new HashSet<>();

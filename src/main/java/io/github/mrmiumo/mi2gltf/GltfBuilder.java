@@ -4,26 +4,32 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.PrettyPrinter;
 import com.fasterxml.jackson.core.util.DefaultIndenter;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.mrmiumo.mi2gltf.Accessor.ComponentType;
-import io.github.mrmiumo.mi2gltf.Accessor.Type;
-import io.github.mrmiumo.mi2gltf.BufferView.Target;
+import io.github.mrmiumo.mi2gltf.nodes.Mesh;
+import io.github.mrmiumo.mi2gltf.nodes.Node;
+import io.github.mrmiumo.mi2gltf.nodes.Accessor;
+import io.github.mrmiumo.mi2gltf.nodes.Accessor.ComponentType;
+import io.github.mrmiumo.mi2gltf.nodes.Accessor.Type;
+import io.github.mrmiumo.mi2gltf.nodes.BufferView.Target;
 
 public class GltfBuilder {
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private final Gltf gltf = new Gltf();
+    private final Accessor indicesAcc = indicesAccessor();
+    private final Accessor normalsAcc = normalsAccessor();
 
     private boolean pretty = false;
 
     public GltfBuilder add(Cube cube) {
         final var nodes = gltf.nodes();
 
-        if (cube.axis == 0) {
+        if (cube.axis() == 0) {
             /* No rotation, one node is enough */
             var node = new Node()
                 .setReferenced(true)
@@ -31,21 +37,15 @@ public class GltfBuilder {
             
             nodes.add(node);
         } else {
-            /* Rotation, pivot node needed */
-            var child = new Node()
-                .setReferenced(false)
-                .setMesh(newCubeMesh(
-                    cube.from().sub(cube.pivot),
-                    cube.to().sub(cube.pivot)
-                ));
-            var parent = new Node()
+            var node = new Node()
                 .setReferenced(true)
-                .translate(cube.pivot)
-                .rotate(cube.quaternion())
-                .addChild(child);
+                .setMesh(newCubeMesh(
+                    cube.from().sub(cube.pivot()),
+                    cube.to().sub(cube.pivot())))
+                .translate(cube.pivot())
+                .rotate(cube.quaternion());
             
-            nodes.add(child);
-            nodes.add(parent);
+            nodes.add(node);
         }
         return this;
     }
@@ -54,17 +54,12 @@ public class GltfBuilder {
     private Mesh newCubeMesh(Vec from, Vec to) {
         var buffer = gltf.getBuffer("Mesh");
 
-        var viewPositions = buffer.newView(Target.ARRAY_BUFFER);
-        var viewNormals = buffer.newView(Target.ARRAY_BUFFER);
-        var viewIndices = buffer.newView(Target.ELEMENT_ARRAY_BUFFER);
-
-        var accPositions = viewPositions.newAccessor(Type.VEC3, ComponentType.FLOAT);
-        var accNormals = viewNormals.newAccessor(Type.VEC3, ComponentType.FLOAT);
-        var accIndices = viewIndices.newAccessor(Type.SCALAR, ComponentType.UNSIGNED_SHORT);
+        var view = buffer.newView(Target.ARRAY_BUFFER);
+        var positionsAcc = view.newAccessor(Type.VEC3, ComponentType.FLOAT);
 
         var fx = from.x(); var fy = from.y(); var fz = from.z();
         var tx = to.x();   var ty = to.y();   var tz = to.z();
-        accPositions.add(
+        positionsAcc.add(
             fx, fy, fz,  fx, fy, fz,  fx, fy, fz, // (0) Front Bottom Left
             tx, fy, fz,  tx, fy, fz,  tx, fy, fz, // (1) Front Bottom Right
             tx, ty, fz,  tx, ty, fz,  tx, ty, fz, // (2) Front Top Right
@@ -75,7 +70,19 @@ public class GltfBuilder {
             fx, ty, tz,  fx, ty, tz,  fx, ty, tz  // (7) Back Top Left
         );
 
-        accIndices.add(
+        return new Mesh(indicesAcc, positionsAcc, normalsAcc);
+    }
+
+    /**
+     * Build one cube indices accessor
+     * @return the indices accessor
+     */
+    private Accessor indicesAccessor() {
+        var buffer = gltf.getBuffer("Mesh");
+        var view = buffer.newView(Target.ELEMENT_ARRAY_BUFFER);
+        var acc = view.newAccessor(Type.SCALAR, ComponentType.UNSIGNED_SHORT);
+
+        acc.add(
              3,  0,  6,   6,  0,  9, // Front
             10,  1, 21,   1, 12, 21, // Right
              2,  4, 15,  13,  2, 15, // Bottom
@@ -84,19 +91,30 @@ public class GltfBuilder {
             23, 20, 11,  20,  8, 11  // Top
         );
 
-        var n = 1f;
-        accNormals.add(
-            0, 0, -n,   n, 0, 0,  0, -n, 0, // Front Right Bottom
-            0, 0, -n,  0, -n, 0,  -n, 0, 0, // Front Bottom Left
-            0, 0, -n,  -n, 0, 0,  0,  n, 0, // Front Left Top
-            0, 0, -n,   n, 0, 0,  0,  n, 0, // Front Right Top
-             n, 0, 0,  0, -n, 0,  0, 0,  n, // Right Bottom Back
-            0, -n, 0,  0, 0,  n,  -n, 0, 0, // Bottom Back Left
-            0, 0,  n,  -n, 0, 0,  0,  n, 0, // Back Left Top
-             n, 0, 0,  0, 0,  n,  0,  n, 0   // Right Back Top
+        return acc;
+    }
+
+    /**
+     * Build one cube normals accessor
+     * @return the normals accessor
+     */
+    private Accessor normalsAccessor() {
+        var buffer = gltf.getBuffer("Mesh");
+        var view = buffer.newView(Target.ARRAY_BUFFER);
+        var acc = view.newAccessor(Type.VEC3, ComponentType.FLOAT);
+
+        acc.add(
+            0, 0, -1,   1, 0, 0,  0, -1, 0, // Front Right Bottom
+            0, 0, -1,  0, -1, 0,  -1, 0, 0, // Front Bottom Left
+            0, 0, -1,  -1, 0, 0,  0,  1, 0, // Front Left Top
+            0, 0, -1,   1, 0, 0,  0,  1, 0, // Front Right Top
+             1, 0, 0,  0, -1, 0,  0, 0,  1, // Right Bottom Back
+            0, -1, 0,  0, 0,  1,  -1, 0, 0, // Bottom Back Left
+            0, 0,  1,  -1, 0, 0,  0,  1, 0, // Back Left Top
+             1, 0, 0,  0, 0,  1,  0,  1, 0f  // Right Back Top
         );
 
-        return new Mesh(accIndices, accPositions, accNormals);
+        return acc;
     }
 
     /**
@@ -173,4 +191,3 @@ public class GltfBuilder {
 
     public record Face(String face, float uvX, float uvY, float uvW, float uvH, int rotation, String texture) {}
 }
-

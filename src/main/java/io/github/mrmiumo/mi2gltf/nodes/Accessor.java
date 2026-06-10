@@ -1,8 +1,12 @@
-package io.github.mrmiumo.mi2gltf;
+package io.github.mrmiumo.mi2gltf.nodes;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import io.github.mrmiumo.mi2gltf.ByteArray;
 
+@JsonInclude(Include.NON_EMPTY)
 public class Accessor {
     
     private int index = -1;
@@ -167,8 +171,8 @@ public class Accessor {
     }
 
     @JsonGetter
-    public int byteOffset() {
-        return byteOffset;
+    public Integer byteOffset() {
+        return byteOffset == 0 ? null : byteOffset;
     }
 
     @JsonGetter

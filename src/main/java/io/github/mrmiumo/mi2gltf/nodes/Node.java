@@ -1,4 +1,4 @@
-package io.github.mrmiumo.mi2gltf;
+package io.github.mrmiumo.mi2gltf.nodes;
 
 import java.util.ArrayList;
 
@@ -6,6 +6,8 @@ import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+
+import io.github.mrmiumo.mi2gltf.Vec;
 
 @JsonInclude(Include.NON_NULL)
 public class Node {

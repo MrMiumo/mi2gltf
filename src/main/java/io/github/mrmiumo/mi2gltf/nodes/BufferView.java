@@ -1,12 +1,15 @@
-package io.github.mrmiumo.mi2gltf;
+package io.github.mrmiumo.mi2gltf.nodes;
 import java.util.Collection;
 import java.util.HashSet;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.github.mrmiumo.mi2gltf.Accessor.ComponentType;
-import io.github.mrmiumo.mi2gltf.Accessor.Type;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import io.github.mrmiumo.mi2gltf.nodes.Accessor.ComponentType;
+import io.github.mrmiumo.mi2gltf.nodes.Accessor.Type;
 
+@JsonInclude(Include.NON_EMPTY)
 public class BufferView {
 
     private int index = -1;
@@ -97,8 +100,8 @@ public class BufferView {
     }
 
     @JsonGetter
-    public int byteOffset() {
-        return byteOffset;
+    public Integer byteOffset() {
+        return byteOffset == 0 ? null : byteOffset;
     }
 
     @JsonGetter
