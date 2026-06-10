@@ -11,18 +11,11 @@ import java.util.function.Function;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.mrmiumo.mi2gltf.GltfBuilder.Cube;
-
-import io.github.mrmiumo.mi3engine.Element.Axis;
-import io.github.mrmiumo.mi3engine.Element.Face;
-import io.github.mrmiumo.mi3engine.Texture;
 
 /**
  * Parse a model file inside a Minecraft resource pack: loads the
@@ -75,7 +68,7 @@ public class ModelParser {
         texturesFolder = getTexturesFolder(file);
 
         var json = MAPPER.readTree(data);
-        // parseTextures(json.get("textures"));
+        parseTextures(json.get("textures"));
         
         var parent = json.get("parent");
         var elements = json.get("elements");
@@ -90,7 +83,7 @@ public class ModelParser {
             parseInternal(Path.of(path).resolve(parent.asText() + ".json"));
         } else if (elements != null) {
             /* Normal model */
-            json.get("elements").elements().forEachRemaining(element -> parseElement(element));
+            json.get("elements").elements().forEachRemaining(this::parseElement);
         }
     }
 
@@ -107,23 +100,16 @@ public class ModelParser {
      */
     private void parseTextures(JsonNode json) {
         if (json == null) return;
-        json.properties().stream()
-            .forEach(p -> {
-                var value = p.getValue().asText().replace("minecraft:", "");
-                Function<String, TextureHolder> mapper;
-                if (value.startsWith("#")) {
-                    mapper = k -> new TextureHolder(value);
-                } else {
-                    mapper = k -> {
-                        try {
-                            return new TextureHolder(loadTexture(value));
-                        } catch (IOException e) {
-                            throw new UncheckedIOException(e);
-                        }
-                    };
-                }
-                textures.computeIfAbsent("#" + p.getKey(), mapper);
-            });
+        json.properties().forEach(p -> {
+            var value = p.getValue().asText().replace("minecraft:", "");
+            Function<String, TextureHolder> mapper;
+            if (value.startsWith("#")) {
+                mapper = k -> new TextureHolder(value);
+            } else {
+                mapper = k -> new TextureHolder(loadTexture(value));
+            }
+            textures.computeIfAbsent("#" + p.getKey(), mapper);
+        });
     }
 
     /**
@@ -133,22 +119,22 @@ public class ModelParser {
      * @return the texture or null if not found
      * @throws IOException in case of error while reading the files
      */
-    private Texture loadTexture(String name) throws IOException {
+    private ModelTexture loadTexture(String name) {
 
         /* Try with the pack texture first */
         if (texturesFolder != null) {
             var path = texturesFolder.resolve(name + ".png");
-            if (Files.exists(path)) return Texture.from(path);
+            if (Files.exists(path)) return ModelTexture.from(path);
         }
 
         /* Try with vanilla textures then */
         if (defaultTextures != null) {
             var path = defaultTextures.resolve(name + ".png");
-            if (Files.exists(path)) return Texture.from(path);
+            if (Files.exists(path)) return ModelTexture.from(path);
         }
         
         /* Texture not found */
-        return Texture.generateDefault();
+        return null;
     }
 
     /**
@@ -193,36 +179,33 @@ public class ModelParser {
         /* Rotation node */
         var rotation = element.get("rotation");
         if (rotation != null) {
-            var pivot = new Vec(0, 0, 0);
             var origin = rotation.get("origin");
             if (origin != null) {
-                pivot = parseVector(origin);
+                cube.pivot(parseVector(origin));
             }
 
             var angle = rotation.get("angle");
             if (angle != null) {
                 var axis = rotation.get("axis").asText().charAt(0);
-                cube = cube.rotate((float)angle.asDouble(), axis, pivot);
+                cube.rotate((float)angle.asDouble(), axis);
             } else {
                 System.err.println("Unsupported rotation format!!!");
             }
-
         }
 
         /* Faces (textures) */
-        // var faces = element.get("faces");
-        // if (faces != null) {
-        //     faces.properties().iterator().forEachRemaining(node -> {
-        //         var face = Face.valueOf(node.getKey().toUpperCase());
-        //         var uv = parseUvs(node.getValue().get("uv"));
-        //         var rotate = parseTextureRotation(node.getValue());
-        //         var textureId = node.getValue().get("texture").asText();
-        //         var texture = textures.computeIfAbsent(textureId, s -> new TextureHolder(Texture.generateDefault()));
-        //         if (texture.get() != null) {
-        //             cube.texture(face, texture.get(), rotate, uv.get(0), uv.get(1), uv.get(2), uv.get(3));
-        //         }
-        //     });
-        // }
+        var faces = element.get("faces");
+        if (faces != null) {
+            faces.properties().iterator().forEachRemaining(node -> {
+                var face = FaceName.from(node.getKey().toLowerCase());
+                var uv = parseUvs(node.getValue().get("uv"));
+                var rotate = parseTextureRotation(node.getValue());
+                var textureId = node.getValue().get("texture").asText();
+                var texture = textures.get(textureId);
+                var path = texture == null ? ModelTexture.MISSING : texture.get();
+                cube.texture(face, path, rotate, uv.get(0), uv.get(1), uv.get(2), uv.get(3));
+            });
+        }
 
         cubes.add(cube);
     }
@@ -264,9 +247,7 @@ public class ModelParser {
     private static List<Float> parseUvs(JsonNode node) {
         var elements = node.elements();
         var list = new ArrayList<Float>();
-        elements.forEachRemaining(d -> {
-            list.add((float)d.asDouble());
-        });
+        elements.forEachRemaining(d -> list.add((float)d.asDouble()));
         return list;
     }
 
@@ -280,8 +261,8 @@ public class ModelParser {
         if (texture == null) return; // Invalid!
 
         var pixels = texture.pixels();
-        int height = texture.sourceHeight();
-        int width = texture.sourceWidth();
+        int height = texture.height;
+        int width = texture.width;
         var depth = height / 16;
 
         var covered = new boolean[height * width];
@@ -336,23 +317,17 @@ public class ModelParser {
      * @param depth the depth of the cube (z axis)
      * @return the cube!
      */
-    private static Cube generateCube(Texture texture, int x, int y, int w, int h, int depth) {
-        var width = texture.sourceWidth();
-        var height = texture.sourceHeight();
+    private static Cube generateCube(ModelTexture texture, int x, int y, int w, int h, int depth) {
+        var u = 16f / texture.width;
+        var v = 16f / texture.height;
 
-        var u = 16f / width;
-        var v = 16f / height;
-
-        var cube = new Cube(new Vec(x, - y, 0), new Vec(x + w, -y - h, -depth))
-            // .texture(Texture.generateDefault())
-            // .texture(Face.NORTH, texture, 0, (x + w) * u, (y + h) * v, x * u, y * v)
-            // .texture(Face.EAST,  texture, 0, (x + w - 1) * u, (y + h) * v, (x + w) * u, y * v)
-            // .texture(Face.UP,  texture, 0, x * u, (y + h) * v, (x + w) * u, (y + h - 1) * v)
-            // .texture(Face.SOUTH, texture, 0, x * u, (y + h) * v, (x + w) * u, y * v)
-            // .texture(Face.WEST,  texture, 0, x * u, (y + h) * v, (x + 1) * u, y * v)
-            // .texture(Face.DOWN,    texture, 0, x * u, y * v, (x + w) * u, (y + 1) * v);
-            ;
-        return cube;
+        return new Cube(new Vec(x, - y, 0), new Vec(x + w, -y - h, -depth))
+            .texture(FaceName.FRONT, texture, 0, (x + w) * u, (y + h) * v, x * u, y * v)
+            .texture(FaceName.RIGHT,  texture, 0, (x + w - 1) * u, (y + h) * v, (x + w) * u, y * v)
+            .texture(FaceName.TOP,    texture, 0, x * u, (y + h) * v, (x + w) * u, (y + h - 1) * v)
+            .texture(FaceName.BACK, texture, 0, x * u, (y + h) * v, (x + w) * u, y * v)
+            .texture(FaceName.LEFT,  texture, 0, x * u, (y + h) * v, (x + 1) * u, y * v)
+            .texture(FaceName.BOTTOM,  texture, 0, x * u, y * v, (x + w) * u, (y + 1) * v);
     }
 
 
@@ -392,7 +367,7 @@ public class ModelParser {
 
     private class TextureHolder {
         /** The real texture if available */
-        private final Texture texture;
+        private final ModelTexture texture;
 
         /** Another texture ID if the real texture is missing */
         private final String id;
@@ -401,7 +376,7 @@ public class ModelParser {
          * Creates a new texture holder containing a real texture.
          * @param texture the texture to insert in the holder
          */
-        public TextureHolder(Texture texture) {
+        public TextureHolder(ModelTexture texture) {
             this.texture = texture;
             this.id = null;
         }
@@ -421,11 +396,10 @@ public class ModelParser {
          * has been set to null, this method can return null!
          * @return the texture or null
          */
-        public Texture get() {
+        public ModelTexture get() {
             if (texture != null) return texture;
             var reference = textures.get(id);
-            return reference == null ? null : reference.get();
+            return reference == null ? ModelTexture.MISSING : reference.get();
         }
     }
 }
-

@@ -1,19 +1,28 @@
 package io.github.mrmiumo.mi2gltf;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
 import io.github.mrmiumo.mi2gltf.nodes.Accessor;
 import io.github.mrmiumo.mi2gltf.nodes.Buffer;
 import io.github.mrmiumo.mi2gltf.nodes.BufferView;
 import io.github.mrmiumo.mi2gltf.nodes.Mesh;
 import io.github.mrmiumo.mi2gltf.nodes.Node;
+import io.github.mrmiumo.mi2gltf.textures.Image;
+import io.github.mrmiumo.mi2gltf.textures.Material;
+import io.github.mrmiumo.mi2gltf.textures.Sampler;
+import io.github.mrmiumo.mi2gltf.textures.Texture;
 
+@JsonInclude(Include.NON_EMPTY)
 public class Gltf {
 
     /** Header of the file with the GLTF version and generator name */
@@ -39,6 +48,19 @@ public class Gltf {
 
     /** List of buffers */
     private HashMap<String, Buffer> buffers = new HashMap<>();
+    
+
+    /** List of samplers (only one by default) */
+    private Sampler[] samplers = new Sampler[]{ Sampler.instance };
+
+    /** List of images */
+    private List<Image> images = new ArrayList<>();
+
+    /** List of textures */
+    private List<Texture> textures = new ArrayList<>();
+
+    /** List of materials */
+    private HashMap<Path, Material> materials = new HashMap<>();
 
     // materials
 
@@ -94,13 +116,33 @@ public class Gltf {
     public List<Mesh> meshes() { return meshes; }
     
     @JsonGetter
-    public Collection<Buffer> buffers() { return buffers.values(); }
+    public Collection<Buffer> buffers() {
+        return buffers.values().stream()
+            .sorted(Comparator.comparingInt(Buffer::index))
+            .toList();}
     
     @JsonGetter
     public List<BufferView> bufferViews() { return views; }
 
     @JsonGetter
     public List<Accessor> accessors() { return accessors; }
+
+
+    @JsonGetter
+    public Sampler[] samplers() { return samplers; }
+
+    @JsonGetter
+    public List<Image> images() { return images; }
+
+    @JsonGetter
+    public List<Texture> textures() { return textures; }
+
+    @JsonGetter
+    public Collection<Material> materials() {
+        return materials.values().stream()
+            .sorted(Comparator.comparingInt(Material::index))
+            .toList();
+    }
 
 
     /**
@@ -117,7 +159,22 @@ public class Gltf {
         buffers.put(key, buffer);
         return buffer;
     }
-    
+
+    /**
+     * Finds a material with the given path or creates a new one if not
+     * existing yet.
+     * @param path the path of the material to get (image)
+     * @return the material
+     */
+    public Material getMaterial(Path path) {
+        return materials.computeIfAbsent(path, p -> {
+            var image = new Image(p, images.size());
+            images.add(image);
+            var texture = new Texture(image, textures.size());
+            textures.add(texture);
+            return new Material(texture, materials.size());
+        });
+    }
+
     private record Asset(String generator, String version) {}
 }
-

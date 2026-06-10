@@ -39,12 +39,12 @@ public class Accessor {
 
         var vMax = componentType == ComponentType.FLOAT ? Float.MAX_VALUE : Short.MAX_VALUE;
         var vMin = -vMax;
-        if (type == Type.VEC3) {
-            this.min = new float[]{ vMax, vMax, vMax };
-            this.max = new float[]{ vMin, vMin, vMin };
-        } else {
-            this.min = new float[]{ vMax };
-            this.max = new float[]{ vMin };
+        var len = type.size;
+        this.min = new float[len];
+        this.max = new float[len];
+        for (var i = 0 ; i < len ; i++) {
+            min[i] = vMax;
+            max[i] = vMin;
         }
     }
 
@@ -70,7 +70,7 @@ public class Accessor {
             if (this.min[i % mod] > floats[i]) this.min[i % mod] = floats[i];
             if (this.max[i % mod] < floats[i]) this.max[i % mod] = floats[i];
         }
-        count += floats.length / type.size;
+        count += floats.length / mod;
         return this;
     }
 
@@ -96,7 +96,7 @@ public class Accessor {
             if (this.min[i % mod] > shorts[i]) this.min[i % mod] = shorts[i];
             if (this.max[i % mod] < shorts[i]) this.max[i % mod] = shorts[i];
         }
-        count += shorts.length / type.size;
+        count += shorts.length / mod;
         return this;
     }
 
@@ -122,7 +122,7 @@ public class Accessor {
             if (this.min[i % mod] > shorts[i]) this.min[i % mod] = shorts[i];
             if (this.max[i % mod] < shorts[i]) this.max[i % mod] = shorts[i];
         }
-        count += shorts.length / type.size;
+        count += shorts.length / mod;
         return this;
     }
 
@@ -211,6 +211,7 @@ public class Accessor {
 
     public enum Type {
         SCALAR(1), // One number
+        VEC2(2),   // A vector of 2 numbers
         VEC3(3);   // A vector of 3 numbers
         // MAT4(16);   // A 4x4 matrice
 

@@ -1,21 +1,26 @@
 package io.github.mrmiumo.mi2gltf;
 
+import static io.github.mrmiumo.mi2gltf.FaceName.*;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-
+import java.util.Collection;
+import java.util.EnumMap;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.PrettyPrinter;
 import com.fasterxml.jackson.core.util.DefaultIndenter;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.mrmiumo.mi2gltf.nodes.Mesh;
-import io.github.mrmiumo.mi2gltf.nodes.Node;
+import io.github.mrmiumo.mi2gltf.Cube.Face;
 import io.github.mrmiumo.mi2gltf.nodes.Accessor;
 import io.github.mrmiumo.mi2gltf.nodes.Accessor.ComponentType;
 import io.github.mrmiumo.mi2gltf.nodes.Accessor.Type;
 import io.github.mrmiumo.mi2gltf.nodes.BufferView.Target;
+import io.github.mrmiumo.mi2gltf.nodes.Mesh;
+import io.github.mrmiumo.mi2gltf.nodes.Node;
+import io.github.mrmiumo.mi2gltf.textures.Material;
 
 public class GltfBuilder {
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -33,7 +38,7 @@ public class GltfBuilder {
             /* No rotation, one node is enough */
             var node = new Node()
                 .setReferenced(true)
-                .setMesh(newCubeMesh(cube.from(), cube.to()));
+                .setMesh(newCubeMesh(cube.from(), cube.to(), cube.faces()));
             
             nodes.add(node);
         } else {
@@ -41,7 +46,9 @@ public class GltfBuilder {
                 .setReferenced(true)
                 .setMesh(newCubeMesh(
                     cube.from().sub(cube.pivot()),
-                    cube.to().sub(cube.pivot())))
+                    cube.to().sub(cube.pivot()),
+                    cube.faces()
+                ))
                 .translate(cube.pivot())
                 .rotate(cube.quaternion());
             
@@ -51,7 +58,7 @@ public class GltfBuilder {
     }
 
     @SuppressWarnings("java:S1659")
-    private Mesh newCubeMesh(Vec from, Vec to) {
+    private Mesh newCubeMesh(Vec from, Vec to, Collection<Face> faces) {
         var buffer = gltf.getBuffer("Mesh");
 
         var view = buffer.newView(Target.ARRAY_BUFFER);
@@ -70,8 +77,96 @@ public class GltfBuilder {
             fx, ty, tz,  fx, ty, tz,  fx, ty, tz  // (7) Back Top Left
         );
 
-        return new Mesh(indicesAcc, positionsAcc, normalsAcc);
+        Material material = null;
+        Accessor texturesAcc = null;
+        if (!faces.isEmpty()) {
+            var texture = faces.iterator().next().texture();
+            material = gltf.getMaterial(texture.path());
+            texturesAcc = uvs(faces);
+        }
+        return new Mesh(indicesAcc, positionsAcc, normalsAcc, texturesAcc, material);
     }
+
+    private Accessor uvs(Collection<Face> faces) {
+        if (faces.isEmpty()) return null;
+        
+        var buffer = gltf.getBuffer("Mesh");
+        var view = buffer.newView(Target.ARRAY_BUFFER);
+        var acc = view.newAccessor(Type.VEC2, ComponentType.FLOAT);
+
+        var map = mapFaces(faces);
+
+        uv(acc, map.get(FRONT), 0, 0);  // (0) FRONT - Bottom Left
+        uv(acc, map.get(LEFT), 1, 0);   // (1) LEFT - Front Bottom
+        uv(acc, map.get(BOTTOM), 1, 0); // (2) BOTTOM - Front Left
+        uv(acc, map.get(FRONT), 1, 0);  // (3) FRONT - Bottom Right
+        uv(acc, map.get(FRONT), 0, 0);  // (4) BOTTOM - Front Right
+        uv(acc, map.get(RIGHT), 0, 0);  // (5) RIGHT - Front Bottom
+        uv(acc, map.get(FRONT), 1, 1);  // (6) FRONT - Top Right
+        uv(acc, map.get(RIGHT), 0, 1);  // (7) RIGHT - Front Top
+        uv(acc, map.get(TOP), 0, 1);    // (8) TOP - Front Right
+        uv(acc, map.get(FRONT), 0, 1);  // (9) FRONT - Top Left
+        uv(acc, map.get(LEFT), 1, 1);   // (10) LEFT - Front Top
+        uv(acc, map.get(TOP), 1, 1);    // (11) TOP - Front Left
+        uv(acc, map.get(LEFT), 0, 0);   // (12) LEFT - Back Bottom
+        uv(acc, map.get(FRONT), 1, 1);  // (13) BOTTOM - Back Left
+        uv(acc, map.get(BACK), 1, 0);   // (14) BACK - Bottom Left
+        uv(acc, map.get(FRONT), 0, 1);  // (15) BOTTOM - Back Right
+        uv(acc, map.get(BACK), 0, 0);   // (16) BACK - Bottom Right
+        uv(acc, map.get(RIGHT), 1, 0);  // (17) RIGHT - Back Bottom
+        uv(acc, map.get(BACK), 0, 1);   // (18) BACK - Top Right
+        uv(acc, map.get(RIGHT), 1, 1);  // (19) RIGHT - Back Top
+        uv(acc, map.get(TOP), 0, 0);    // (20) TOP - Back Right
+        uv(acc, map.get(LEFT), 0, 1);   // (21) LEFT - Back Top
+        uv(acc, map.get(BACK), 1, 1);   // (22) BACK - Top Left
+        uv(acc, map.get(TOP), 1, 0);    // (23) TOP - Back Left
+
+        return acc;
+    }
+
+    private void uv(Accessor acc, Face face, int w, int h) {
+        var rotate = face.rotation();
+        float u;
+        float v;
+        if (rotate == 0) {
+            u = face.fromX() * w + face.toX() * (1-w);
+            v = face.fromY() * h + face.toY() * (1-h);
+        } else if (rotate == 1) {
+            u = face.fromX() * h + face.toX() * (1-h);
+            v = face.fromY() * (1-w) + face.toY() * w;
+        } else if (rotate == 2) {
+            u = face.fromX() * (1-w) + face.toX() * w;
+            v = face.fromY() * (1-h) + face.toY() * h;
+        } else {
+            u = face.fromX() * (1-h) + face.toX() * h;
+            v = face.fromY() * w + face.toX() * (1-w);
+        }
+        acc.add(u, v);
+    }
+
+    /**
+     * Organize the given faces into a map to retrieve any face by its
+     * name, filling missing ones using 'Transparent' texture
+     * @param faces the faces to organize
+     * @return the map
+     */
+    private EnumMap<FaceName, Face> mapFaces(Collection<Face> faces) {
+        var map = new EnumMap<FaceName, Face>(FaceName.class);
+
+        /* Put all given faces in the map */
+        for (var face : faces) {
+            map.put(face.name(), face);
+        }
+
+        /* Fill missing faces with transparent */
+        for (var name : FaceName.values()) {
+            map.computeIfAbsent(name, n ->
+                map.put(n, new Face(n, 0, 0, 1, 1, 0, ModelTexture.TRANSPARENT))
+            );
+        }
+        return map;
+    }
+
 
     /**
      * Build one cube indices accessor
@@ -84,10 +179,10 @@ public class GltfBuilder {
 
         acc.add(
              3,  0,  6,   6,  0,  9, // Front
-            10,  1, 21,   1, 12, 21, // Right
+            10,  1, 21,   1, 12, 21, // Left
              2,  4, 15,  13,  2, 15, // Bottom
             18, 22, 14,  16, 18, 14, // Back
-            19, 17,  5,   7, 19,  5, // Left
+            19, 17,  5,   7, 19,  5, // Right
             23, 20, 11,  20,  8, 11  // Top
         );
 
@@ -161,33 +256,4 @@ public class GltfBuilder {
         System.out.println(asStr);
         Files.writeString(Path.of("cube.gltf"), asStr);
     }
-
-    public record Cube(Vec from, Vec to, float angle, char axis, Vec pivot, Face... faces) {
-
-        Cube(Vec from, Vec to, Face... faces) {
-            this(from, to, 0f, (char)0, null, faces);
-        }
-
-        public Cube rotate(float angle, char axis, Vec pivot) {
-            return new Cube(from, to, angle, axis, pivot, faces);
-        }
-
-        /**
-         * Gets the rotation as a quaternion [x,y,z,w] if a rotation is set.
-         * @return the rotation quaternion, or null if no rotation is set
-         */
-        @SuppressWarnings("java:S1168")
-        public float[] quaternion() {
-            float rad = (float) Math.toRadians(angle);
-            if (axis == 'x') return new float[]{ sin2(rad), 0, 0, cos2(rad) };
-            if (axis == 'y') return new float[]{ 0, sin2(rad), 0, cos2(rad) };
-            if (axis == 'z') return new float[]{ 0, 0, sin2(rad), cos2(rad) };
-            return null;
-        }
-
-        private static float cos2(float a) { return (float)Math.cos(a/2); }
-        private static float sin2(float a) { return (float)Math.sin(a/2); }
-    }
-
-    public record Face(String face, float uvX, float uvY, float uvW, float uvH, int rotation, String texture) {}
 }
