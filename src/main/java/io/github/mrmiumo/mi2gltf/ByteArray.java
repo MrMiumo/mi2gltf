@@ -46,7 +46,9 @@ public class ByteArray {
      */
     public ByteArray add(byte... bytes) {
         if (len + bytes.length > data.length) {
-            data = Arrays.copyOf(data, data.length * 2 );
+            var newLen = data.length;
+            while (len + bytes.length > newLen) newLen *= 2;
+            data = Arrays.copyOf(data, newLen);
         }
 
         System.arraycopy(bytes, 0, data, len, bytes.length);

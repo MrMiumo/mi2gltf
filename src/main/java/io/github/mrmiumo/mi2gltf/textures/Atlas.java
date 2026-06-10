@@ -100,11 +100,12 @@ public class Atlas {
             g.drawImage(image.getSubimage(w-1, 0, 1, h), pos.x+w, pos.y, null); // Right
             g.drawImage(image.getSubimage(0, 0, w, 1), pos.x, pos.y-1, null); // Top
             g.drawImage(image.getSubimage(0, h-1, w, 1), pos.x, pos.y+h, null); // Bottom
-            
-            img.setRGB(pos.x-1, pos.y-1, image.getRGB(0, 0));
-            img.setRGB(pos.x+w, pos.y-1, image.getRGB(w-1, 0));
-            img.setRGB(pos.x-1, pos.y+h, image.getRGB(0, h-1));
-            img.setRGB(pos.x+w, pos.y+h, image.getRGB(w-1, h-1));
+
+
+            g.drawImage(image.getSubimage(0,   0,   1, 1), pos.x-1, pos.y-1, null); // TopLeft
+            g.drawImage(image.getSubimage(w-1, 0,   1, 1), pos.x+w, pos.y-1, null); // TopRight
+            g.drawImage(image.getSubimage(0,   h-1, 1, 1), pos.x-1, pos.y+h, null); // BottomLeft
+            g.drawImage(image.getSubimage(w-1, h-1, 1, 1), pos.x+w, pos.y+h, null); // BottomRight
 
             /* Final image draw */
             g.drawImage(image, pos.x, pos.y, null);

@@ -82,7 +82,7 @@ public class ModelParser {
             var path = file.toAbsolutePath().toString()
                 .replace("\\", "/")
                 .replaceFirst("assets/minecraft/models/.*", "assets/minecraft/models/");
-            parseInternal(Path.of(path).resolve(parent.asText() + ".json"));
+            parseInternal(resolveSafe(Path.of(path), parent.asText() + ".json"));
         } else if (elements != null) {
             /* Normal model */
             json.get("elements").elements().forEachRemaining(this::parseElement);
@@ -333,7 +333,23 @@ public class ModelParser {
     }
 
 
-
+    /**
+     * Resolves the given path string against this baseDir, ensuring
+     * the result remains in the same baseDir, preventing directory
+     * escape attack.
+     * 
+     * @param baseDir the parent directory to resolve into
+     * @param other the sub path to append
+     * @return the resolved path
+     * @throws SecurityException in case of a directory escape
+     */
+    private static Path resolveSafe(Path baseDir, String other) throws SecurityException {
+        Path resolved = baseDir.resolve(other).normalize();
+        if (!resolved.startsWith(baseDir.normalize())) {
+            throw new SecurityException("Directory traversal attempt blocked: " + other);
+        }
+        return resolved;
+    }
     
     /**
      * Loads the 'default.minecraft.pack' property from the file
