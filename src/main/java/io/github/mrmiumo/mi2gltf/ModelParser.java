@@ -1,0 +1,431 @@
+package io.github.mrmiumo.mi2gltf;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Properties;
+import java.util.function.Function;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.mrmiumo.mi2gltf.GltfBuilder.Cube;
+
+import io.github.mrmiumo.mi3engine.Element.Axis;
+import io.github.mrmiumo.mi3engine.Element.Face;
+import io.github.mrmiumo.mi3engine.Texture;
+
+/**
+ * Parse a model file inside a Minecraft resource pack: loads the
+ * textures, generates the cubes and prepare them to be rendered with
+ * the engine.<p>
+ * IMPORTANT: you should (must) define a property 'default.minecraft.pack'
+ * in your application.properties file to give the path to a folder
+ * corresponding to the default minecraft resource pack.
+ */
+public class ModelParser {
+
+    /** The mapper used to decode JSON */
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    /** List of parsed cubes */
+    private static HashSet<Cube> cubes = new HashSet<>();
+
+    /** Path of the default textures if set in 'default.minecraft.pack' */
+    private static Path defaultTextures = loadProperty();
+
+    /** Lists of all textures with their ID and image */
+    private final HashMap<String, TextureHolder> textures = new HashMap<>();
+
+    /** Path of the textures folder in the pack being parsed */
+    private Path texturesFolder;
+
+
+    /**
+     * Parses the given model file. A valid model file is well formed
+     * JSON that respect Minecraft model rules and is located in a
+     * resource pack.
+     * @param file the model file to parse
+     * @return this parser
+     * @throws IOException in case of error while parsing the JSON
+     */
+    public Collection<Cube> parse(Path file) throws IOException {
+        cubes.clear();
+        parseInternal(file);
+        return cubes;
+    }
+
+    /**
+     * Internal method that parses the given file without resetting
+     * anything.
+     * @param file the file to parse
+     * @throws IOException in case of error while reading the file
+     */
+    private void parseInternal(Path file) throws IOException {
+        var data = Files.readString(file);
+        texturesFolder = getTexturesFolder(file);
+
+        var json = MAPPER.readTree(data);
+        // parseTextures(json.get("textures"));
+        
+        var parent = json.get("parent");
+        var elements = json.get("elements");
+        if (elements == null && parent != null && "item/generated".equals(parent.asText())) {
+            /* Special parent that generates a model from a single texture */
+            parseGenerated();
+        } else if (elements == null && parent != null) {
+            /* Inheritance: parse the parent and override textures */
+            var path = file.toAbsolutePath().toString()
+                .replace("\\", "/")
+                .replaceFirst("assets/minecraft/models/.*", "assets/minecraft/models/");
+            parseInternal(Path.of(path).resolve(parent.asText() + ".json"));
+        } else if (elements != null) {
+            /* Normal model */
+            json.get("elements").elements().forEachRemaining(element -> parseElement(element));
+        }
+    }
+
+
+
+    /* ************************************************************ *\
+     *                           TEXTURES                           *
+    \* ************************************************************ */
+
+    /**
+     * Fills the {@link #textures} collection with the images loaded
+     * from the given JSON file.
+     * @param json the "textures" json node from the model file
+     */
+    private void parseTextures(JsonNode json) {
+        if (json == null) return;
+        json.properties().stream()
+            .forEach(p -> {
+                var value = p.getValue().asText().replace("minecraft:", "");
+                Function<String, TextureHolder> mapper;
+                if (value.startsWith("#")) {
+                    mapper = k -> new TextureHolder(value);
+                } else {
+                    mapper = k -> {
+                        try {
+                            return new TextureHolder(loadTexture(value));
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                    };
+                }
+                textures.computeIfAbsent("#" + p.getKey(), mapper);
+            });
+    }
+
+    /**
+     * Loads the textures with the given name in the current pack or
+     * in the default vanilla textures.
+     * @param name the name of the texture such as 'block/bricks'
+     * @return the texture or null if not found
+     * @throws IOException in case of error while reading the files
+     */
+    private Texture loadTexture(String name) throws IOException {
+
+        /* Try with the pack texture first */
+        if (texturesFolder != null) {
+            var path = texturesFolder.resolve(name + ".png");
+            if (Files.exists(path)) return Texture.from(path);
+        }
+
+        /* Try with vanilla textures then */
+        if (defaultTextures != null) {
+            var path = defaultTextures.resolve(name + ".png");
+            if (Files.exists(path)) return Texture.from(path);
+        }
+        
+        /* Texture not found */
+        return Texture.generateDefault();
+    }
+
+    /**
+     * Tries to find the textures folder from the Minecraft pack
+     * containing the given model file.
+     * @param file the model file to find the textures folder from
+     * @return the path of the textures folder or null
+     */
+    private static Path getTexturesFolder(Path file) {
+        var pathStr = file.toAbsolutePath().toString().replace("\\", "/");
+        var pos = pathStr.lastIndexOf("assets/minecraft/");
+        if (pos == -1) {
+            return null; // The given file is not located in a valid Minecraft Pack
+        }
+        var texturesPath = Path.of(pathStr.substring(0, pos + 16)).resolve("textures");
+        if (!Files.isDirectory(texturesPath)) {
+            return null; // The textures folder is missing
+        }
+        return texturesPath;
+    }
+
+
+    /* ************************************************************ *\
+     *                           ELEMENTS                           *
+    \* ************************************************************ */
+
+    /**
+     * Converts the given "elements" child into a Cube and adds it to
+     * the engine's collection.
+     * @param element the "element" json node from the model file
+     */
+    private void parseElement(JsonNode element) {
+
+        /* From node */
+        var from = parseVector(element.get("from"));
+
+        /* To node */
+        var to = parseVector(element.get("to"));
+
+        var cube = new Cube(from, to);
+
+        /* Rotation node */
+        var rotation = element.get("rotation");
+        if (rotation != null) {
+            var pivot = new Vec(0, 0, 0);
+            var origin = rotation.get("origin");
+            if (origin != null) {
+                pivot = parseVector(origin);
+            }
+
+            var angle = rotation.get("angle");
+            if (angle != null) {
+                var axis = rotation.get("axis").asText().charAt(0);
+                cube = cube.rotate((float)angle.asDouble(), axis, pivot);
+            } else {
+                System.err.println("Unsupported rotation format!!!");
+            }
+
+        }
+
+        /* Faces (textures) */
+        // var faces = element.get("faces");
+        // if (faces != null) {
+        //     faces.properties().iterator().forEachRemaining(node -> {
+        //         var face = Face.valueOf(node.getKey().toUpperCase());
+        //         var uv = parseUvs(node.getValue().get("uv"));
+        //         var rotate = parseTextureRotation(node.getValue());
+        //         var textureId = node.getValue().get("texture").asText();
+        //         var texture = textures.computeIfAbsent(textureId, s -> new TextureHolder(Texture.generateDefault()));
+        //         if (texture.get() != null) {
+        //             cube.texture(face, texture.get(), rotate, uv.get(0), uv.get(1), uv.get(2), uv.get(3));
+        //         }
+        //     });
+        // }
+
+        cubes.add(cube);
+    }
+
+    /**
+     * Gets the "rotation" attribute from the given face definition or
+     * returns the default 0 value.
+     * @param node the face node to get the rotation from
+     * @return the rotation
+     */
+    private static int parseTextureRotation(JsonNode node) {
+        var rotation = node.get("rotation");
+        if (rotation != null) {
+            return rotation.asInt() / 90;
+        }
+        return 0;
+    }
+
+    /**
+     * Reads the given json node that contains 3 numbers and creates
+     * a vector from it.
+     * @param node the node containing the number
+     * @return the corresponding vector
+     */
+    private static Vec parseVector(JsonNode node) {
+        var elements = node.elements();
+        return new Vec(
+            (float)elements.next().asDouble(),
+            (float)elements.next().asDouble(),
+            (float)elements.next().asDouble()
+        );
+    }
+
+    /**
+     * Reads and format an array of number from a json node.
+     * @param node the node containing the array elements
+     * @return the list of the numbers
+     */
+    private static List<Float> parseUvs(JsonNode node) {
+        var elements = node.elements();
+        var list = new ArrayList<Float>();
+        elements.forEachRemaining(d -> {
+            list.add((float)d.asDouble());
+        });
+        return list;
+    }
+
+    /**
+     * Parse a model using 'item/generated' as a parent. This special
+     * parent creates a model out of a single image. This image will
+     * be extruded to have a depth of 1.
+     */
+    private void parseGenerated() {
+        var texture = textures.get("#layer0").get();
+        if (texture == null) return; // Invalid!
+
+        var pixels = texture.pixels();
+        int height = texture.sourceHeight();
+        int width = texture.sourceWidth();
+        var depth = height / 16;
+
+        var covered = new boolean[height * width];
+        var solid = new int[width * height];
+        for (var i = 0 ; i < solid.length ; i++) {
+            solid[i] = (pixels[i] >>> 24) / 5;
+        }
+
+        for (var y = 0 ; y < height ; y++) {
+            for (var x = 0 ; x < width ; x++) {
+                int offset = y * width + x;
+                var alpha = solid[offset];
+                if (alpha == 0 || covered[offset]) continue;
+
+                /* Find the widest possible rectangle */
+                var recW = 0;
+                while (x + recW < width && !covered[offset + recW] && solid[offset + recW] == alpha) {
+                    recW++;
+                }
+
+                /* Expand downwards */
+                int recH = 1;
+                int minW = recW;
+                while (y + recH < height) {
+                    int rowStart = (y + recH) * width + x;
+                    var lineOk = true;
+                    for (var i = 0 ; i < minW && lineOk ; i++) {
+                        if (covered[rowStart + i] || solid[rowStart + i] != alpha) lineOk = false;
+                    }
+                    if (!lineOk) break;
+                    recH++;
+                }
+
+                cubes.add(generateCube(texture, x, y, recW, recH, depth));
+
+                /* Mark all pixels covered by this cube */
+                for (int i = y; i < y + recH; i++) {
+                    Arrays.fill(covered, i * width + x, i * width + x + recW, true);
+                }
+                x += minW - 1;
+            }
+        }
+    }
+
+    /**
+     * Builds a new textures cube part of a generated item.
+     * @param texture the texture to apply on the cube
+     * @param x the x coordinate of the cube
+     * @param y the y coordinate of the cube
+     * @param w the width of the cube to create
+     * @param h the height of the cube to create
+     * @param depth the depth of the cube (z axis)
+     * @return the cube!
+     */
+    private static Cube generateCube(Texture texture, int x, int y, int w, int h, int depth) {
+        var width = texture.sourceWidth();
+        var height = texture.sourceHeight();
+
+        var u = 16f / width;
+        var v = 16f / height;
+
+        var cube = new Cube(new Vec(x, - y, 0), new Vec(x + w, -y - h, -depth))
+            // .texture(Texture.generateDefault())
+            // .texture(Face.NORTH, texture, 0, (x + w) * u, (y + h) * v, x * u, y * v)
+            // .texture(Face.EAST,  texture, 0, (x + w - 1) * u, (y + h) * v, (x + w) * u, y * v)
+            // .texture(Face.UP,  texture, 0, x * u, (y + h) * v, (x + w) * u, (y + h - 1) * v)
+            // .texture(Face.SOUTH, texture, 0, x * u, (y + h) * v, (x + w) * u, y * v)
+            // .texture(Face.WEST,  texture, 0, x * u, (y + h) * v, (x + 1) * u, y * v)
+            // .texture(Face.DOWN,    texture, 0, x * u, y * v, (x + w) * u, (y + 1) * v);
+            ;
+        return cube;
+    }
+
+
+
+    
+    /**
+     * Loads the 'default.minecraft.pack' property from the file
+     * application.properties if available.
+     * @return the path of the default pack if set and valid, null otherwise
+     */
+    private static Path loadProperty() {
+        try (InputStream in = ClassLoader.getSystemResourceAsStream("application.properties")) {
+            if (in != null) {
+                Properties props = new Properties();
+                props.load(in);
+                var prop = props.getProperty("default.minecraft.pack");
+                if (prop == null) return null;
+                var path = Path.of(prop).resolve("assets/minecraft/textures");
+                return Files.exists(path) ? path : null;
+            }
+        } catch (IOException e) {}
+        return null;
+    }
+
+    /**
+     * Sets the path of the default resource pack folder. If the
+     * 'default.minecraft.pack' property is already defined, no need
+     * to use this function!
+     * @param location the path of the default minecraft resource pack
+     */
+    public static void setDefaultPack(Path location) {
+        if (location == null) return;
+        location = location.resolve("assets/minecraft/textures");
+        if (!Files.exists(location)) return;
+        defaultTextures = location;
+    }
+
+    private class TextureHolder {
+        /** The real texture if available */
+        private final Texture texture;
+
+        /** Another texture ID if the real texture is missing */
+        private final String id;
+
+        /**
+         * Creates a new texture holder containing a real texture.
+         * @param texture the texture to insert in the holder
+         */
+        public TextureHolder(Texture texture) {
+            this.texture = texture;
+            this.id = null;
+        }
+
+        /**
+         * Creates a new texture holder containing texture reference.
+         * @param id the ID of the texture to refer to
+         */
+        public TextureHolder(String id) {
+            this.texture = null;
+            this.id = id;
+        }
+
+        /**
+         * Gets the texture contained in this holder. If this holder
+         * contains a reference to a missing texture or if the texture
+         * has been set to null, this method can return null!
+         * @return the texture or null
+         */
+        public Texture get() {
+            if (texture != null) return texture;
+            var reference = textures.get(id);
+            return reference == null ? null : reference.get();
+        }
+    }
+}
+
