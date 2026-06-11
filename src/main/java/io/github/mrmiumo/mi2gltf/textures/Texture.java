@@ -1,5 +1,7 @@
 package io.github.mrmiumo.mi2gltf.textures;
 
+import java.nio.file.Path;
+
 import com.fasterxml.jackson.annotation.JsonGetter;
 
 /**
@@ -20,6 +22,12 @@ public class Texture {
         this.source = source;
         this.index = index;
     }
+
+    /**
+     * Gets the path of this texture
+     * @return the path of the texture
+     */
+    public Path path() { return source.path(); }
 
     /**
      * Gets the index of this texture in the textures array

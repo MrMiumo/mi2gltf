@@ -68,6 +68,12 @@ public class Image {
     public int index() { return index; }
 
     /**
+     * Gets the path of this image
+     * @return the path of the image
+     */
+    public Path path() { return path; }
+
+    /**
      * Converts the data of this image into a base64 URI
      * @return the base64 URI of the image data
      */

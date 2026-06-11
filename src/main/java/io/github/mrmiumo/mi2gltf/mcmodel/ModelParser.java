@@ -209,7 +209,8 @@ public class ModelParser {
                 var textureId = node.getValue().get("texture").asText();
                 var texture = textures.get(textureId);
                 var path = texture == null ? ModelTexture.MISSING : texture.get();
-                cube.texture(face, path, rotate, uv.get(0), uv.get(1), uv.get(2), uv.get(3));
+                var tinted = node.getValue().get("tintindex") != null;
+                cube.texture(face, path, rotate, uv.get(0), uv.get(1), uv.get(2), uv.get(3), tinted);
             });
         }
 
@@ -328,12 +329,12 @@ public class ModelParser {
         var v = 16f / texture.height;
 
         return new Cube(new Vec(x, - y, 0), new Vec(x + w, -y - h, -depth))
-            .texture(FaceName.FRONT, texture, 0, (x + w) * u, (y + h) * v, x * u, y * v)
-            .texture(FaceName.RIGHT,  texture, 0, (x + w - 1) * u, (y + h) * v, (x + w) * u, y * v)
-            .texture(FaceName.TOP,    texture, 0, x * u, (y + h) * v, (x + w) * u, (y + h - 1) * v)
-            .texture(FaceName.BACK, texture, 0, x * u, (y + h) * v, (x + w) * u, y * v)
-            .texture(FaceName.LEFT,  texture, 0, x * u, (y + h) * v, (x + 1) * u, y * v)
-            .texture(FaceName.BOTTOM,  texture, 0, x * u, y * v, (x + w) * u, (y + 1) * v);
+            .texture(FaceName.FRONT, texture, 0, (x + w) * u, (y + h) * v, x * u, y * v, false)
+            .texture(FaceName.RIGHT,  texture, 0, (x + w - 1) * u, (y + h) * v, (x + w) * u, y * v, false)
+            .texture(FaceName.TOP,    texture, 0, x * u, (y + h) * v, (x + w) * u, (y + h - 1) * v, false)
+            .texture(FaceName.BACK, texture, 0, x * u, (y + h) * v, (x + w) * u, y * v, false)
+            .texture(FaceName.LEFT,  texture, 0, x * u, (y + h) * v, (x + 1) * u, y * v, false)
+            .texture(FaceName.BOTTOM,  texture, 0, x * u, y * v, (x + w) * u, (y + 1) * v, false);
     }
 
 

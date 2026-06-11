@@ -1,6 +1,5 @@
 package io.github.mrmiumo.mi2gltf;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -61,7 +60,7 @@ public class Gltf {
     private final List<Texture> textures = new ArrayList<>();
 
     /** List of materials */
-    private final HashMap<Path, Material> materials = new HashMap<>();
+    private final HashMap<String, Material> materials = new HashMap<>();
 
     Gltf() {
         samplers.add(Sampler.instance);
@@ -215,18 +214,21 @@ public class Gltf {
     }
 
     /**
-     * Finds a material with the given path or creates a new one if not
-     * existing yet.
-     * @param path the path of the material to get (image)
+     * Finds a material with the given texture or creates a new one if
+     * not existing yet.
+     * @param model the texture of the material to get (image)
+     * @param tinted whether the material is used on tintable faces or not
      * @return the material
      */
-    public Material getMaterial(ModelTexture model) {
-        return materials.computeIfAbsent(model.path(), p -> {
+    public Material getMaterial(ModelTexture model, boolean tinted) {
+        var key = model.path().toString();
+        if (tinted) key += "!tinted";
+        return materials.computeIfAbsent(key, k -> {
             var image = model.toImage(images.size());
             images.add(image);
             var texture = new Texture(image, textures.size());
             textures.add(texture);
-            return new Material(texture, materials.size());
+            return new Material(texture, tinted, materials.size());
         });
     }
 

@@ -13,14 +13,21 @@ public class Material {
 
     private final Pbr pbrMetallicRoughness;
 
+    private final String name;
+
+    private final boolean tinted;
+
     /**
      * Wraps the given texture into a new material 
      * @param texture the texture to wrap
      * @param index the index of this material in the materials array
+     * @param tinted whether this material applies to tintable faces
      */
-    public Material(Texture texture, int index) {
+    public Material(Texture texture, boolean tinted, int index) {
         pbrMetallicRoughness = new Pbr(new BaseTexture(texture.index()), 0, 1);
         this.index = index;
+        this.tinted = tinted;
+        this.name = texture.path().getFileName().toString().replace(".png", "");
     }
 
     /**
@@ -49,6 +56,13 @@ public class Material {
      */
     @JsonGetter
     public float alphaCutoff() { return 0.5f; }
+
+    /**
+     * The name of the material
+     * @return the name of the material
+     */
+    @JsonGetter
+    public String name() { return name + (tinted ? "!tinted" : ""); }
 
     /**
      * Data class to respect the GLTF format

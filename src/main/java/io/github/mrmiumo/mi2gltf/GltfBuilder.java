@@ -111,7 +111,7 @@ public class GltfBuilder {
         UVS.get(face.name()).add(texture, face);
 
         /* Add to mesh */
-        var material = gltf.getMaterial(face.texture());
+        var material = gltf.getMaterial(face.texture(), face.tinted());
         mesh.addPrimitive(indicesAcc, positions, normals.get(face.name()), texture, material);
     }
 

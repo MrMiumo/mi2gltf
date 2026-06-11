@@ -90,10 +90,11 @@ public class Cube {
      * @param fromY the coordinate of the texture UV beginning (base 16px)
      * @param toX the coordinate of the texture UV ending (base 16px)
      * @param toY the coordinate of the texture UV ending (base 16px)
+     * @param tinted whether this face supports custom colors or not
      * @return this cube
      */
-    public Cube texture(FaceName face, ModelTexture texture, int rotate, float fromX, float fromY, float toX, float toY) {
-        faces.put(face, new Face(face, fromX/16, fromY/16, toX/16, toY/16, rotate, texture));
+    public Cube texture(FaceName face, ModelTexture texture, int rotate, float fromX, float fromY, float toX, float toY, boolean tinted) {
+        faces.put(face, new Face(face, fromX/16, fromY/16, toX/16, toY/16, rotate, texture, tinted));
         return this;
     }
 
@@ -130,6 +131,7 @@ public class Cube {
      * @param toY the coordinate of the texture UV ending (percent of height)
      * @param rotation the rotation of the texture 
      * @param texture the texture
+     * @param tinted whether this face supports custom colors or not
      */
-    public record Face(FaceName name, float fromX, float fromY, float toX, float toY, int rotation, ModelTexture texture) {}
+    public record Face(FaceName name, float fromX, float fromY, float toX, float toY, int rotation, ModelTexture texture, boolean tinted) {}
 }
