@@ -1,6 +1,7 @@
 package io.github.mrmiumo.mi2gltf;
 
-import static io.github.mrmiumo.mi2gltf.mcmodel.FaceName.*;
+import static io.github.mrmiumo.mi2gltf.nodes.Accessor.ComponentType.*;
+import static io.github.mrmiumo.mi2gltf.nodes.Accessor.Type.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -20,11 +21,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.mrmiumo.mi2gltf.mcmodel.Cube;
 import io.github.mrmiumo.mi2gltf.mcmodel.FaceName;
 import io.github.mrmiumo.mi2gltf.mcmodel.ModelParser;
-import io.github.mrmiumo.mi2gltf.mcmodel.ModelTexture;
 import io.github.mrmiumo.mi2gltf.mcmodel.Cube.Face;
 import io.github.mrmiumo.mi2gltf.nodes.Accessor;
-import io.github.mrmiumo.mi2gltf.nodes.Accessor.ComponentType;
-import io.github.mrmiumo.mi2gltf.nodes.Accessor.Type;
 import io.github.mrmiumo.mi2gltf.nodes.BufferView.Target;
 import io.github.mrmiumo.mi2gltf.nodes.Mesh;
 import io.github.mrmiumo.mi2gltf.nodes.Node;
@@ -39,10 +37,12 @@ public class GltfBuilder {
     private static final Logger LOGGER = LoggerFactory.getLogger(GltfBuilder.class);
     
     private static final ObjectMapper JSON = new ObjectMapper();
+    private static final EnumMap<FaceName, Positions> POSITIONS = initPositions();
+    private static final EnumMap<FaceName, UVs> UVS = initUVs();
 
     private final Gltf gltf = new Gltf();
     private final Accessor indicesAcc = indicesAccessor();
-    private final Accessor normalsAcc = normalsAccessor();
+    private final EnumMap<FaceName, Accessor> normals = initNormals();
     private final Atlas atlas;
     private final Material atlasMaterial;
 
@@ -74,92 +74,62 @@ public class GltfBuilder {
 
     private GltfBuilder add(Cube cube) {
         final var nodes = gltf.nodes();
+        var from = cube.from();
+        var to = cube.to();
+        var node = new Node();
 
-        if (cube.axis() == 0) {
-            /* No rotation, one node is enough */
-            var node = new Node()
-                .setReferenced(true)
-                .setMesh(newCubeMesh(cube.from(), cube.to(), cube.faces()));
-            
-            nodes.add(node);
-        } else {
-            var node = new Node()
-                .setReferenced(true)
-                .setMesh(newCubeMesh(
-                    cube.from().sub(cube.pivot()),
-                    cube.to().sub(cube.pivot()),
-                    cube.faces()
-                ))
-                .translate(cube.pivot())
+        /* Add rotation */
+        if (cube.axis() != 0) {
+            from = from.sub(cube.pivot());
+            to = to.sub(cube.pivot());
+            node.translate(cube.pivot())
                 .rotate(cube.quaternion());
-            
-            nodes.add(node);
         }
+        
+        /* Build mesh */
+        var mesh = new Mesh();
+        for (var face : cube.faces()) {
+            addFace(mesh, from, to, face);
+        }
+
+        node.setMesh(mesh);
+        nodes.add(node);
         return this;
     }
 
+    /**
+     * Adds a face to the given mesh.
+     * @param mesh the mesh to add the face to
+     * @param from the first corner of the cube
+     * @param to the opposite corner of the cube
+     * @param face the details of the face
+     */
     @SuppressWarnings("java:S1659")
-    private Mesh newCubeMesh(Vec from, Vec to, Collection<Face> faces) {
+    private void addFace(Mesh mesh, Vec from, Vec to, Face face) {
         var buffer = gltf.getBuffer("Mesh");
 
+        /* Positions */
         var view = buffer.newView(Target.ARRAY_BUFFER);
-        var positionsAcc = view.newAccessor(Type.VEC3, ComponentType.FLOAT);
-
-        var fx = from.x(); var fy = from.y(); var fz = from.z();
-        var tx = to.x();   var ty = to.y();   var tz = to.z();
-        positionsAcc.add(
-            fx, fy, fz,  fx, fy, fz,  fx, fy, fz, // (0) Front Bottom Left
-            tx, fy, fz,  tx, fy, fz,  tx, fy, fz, // (1) Front Bottom Right
-            tx, ty, fz,  tx, ty, fz,  tx, ty, fz, // (2) Front Top Right
-            fx, ty, fz,  fx, ty, fz,  fx, ty, fz, // (3) Front Top Left
-            fx, fy, tz,  fx, fy, tz,  fx, fy, tz, // (4) Back Bottom Left
-            tx, fy, tz,  tx, fy, tz,  tx, fy, tz, // (5) Back Bottom Right
-            tx, ty, tz,  tx, ty, tz,  tx, ty, tz, // (6) Back Top Right
-            fx, ty, tz,  fx, ty, tz,  fx, ty, tz  // (7) Back Top Left
+        var positions = view.newAccessor(VEC3, FLOAT);
+        POSITIONS.get(face.name()).add(positions,
+            from.x(), from.y(), from.z(),
+            to.x(), to.y(), to.z()
         );
 
-        var texturesAcc = uvs(faces);
-        return new Mesh(indicesAcc, positionsAcc, normalsAcc, texturesAcc, atlasMaterial);
+        /* Texture */
+        view = buffer.newView(Target.ARRAY_BUFFER);
+        var texture = view.newAccessor(VEC2, FLOAT);
+        UVS.get(face.name()).add(atlas, texture, face);
+
+        /* Add to mesh */
+        mesh.addPrimitive(indicesAcc, positions, normals.get(face.name()), texture, atlasMaterial);
     }
 
-    private Accessor uvs(Collection<Face> faces) {
-        if (faces.isEmpty()) return null;
-        
-        var buffer = gltf.getBuffer("Mesh");
-        var view = buffer.newView(Target.ARRAY_BUFFER);
-        var acc = view.newAccessor(Type.VEC2, ComponentType.FLOAT);
-
-        var map = mapFaces(faces);
-
-        uv(acc, map.get(FRONT), 0, 0);  // (0) FRONT - Bottom Left
-        uv(acc, map.get(LEFT), 1, 0);   // (1) LEFT - Front Bottom
-        uv(acc, map.get(BOTTOM), 1, 0); // (2) BOTTOM - Front Left
-        uv(acc, map.get(FRONT), 1, 0);  // (3) FRONT - Bottom Right
-        uv(acc, map.get(BOTTOM), 0, 0); // (4) BOTTOM - Front Right
-        uv(acc, map.get(RIGHT), 0, 0);  // (5) RIGHT - Front Bottom
-        uv(acc, map.get(FRONT), 1, 1);  // (6) FRONT - Top Right
-        uv(acc, map.get(RIGHT), 0, 1);  // (7) RIGHT - Front Top
-        uv(acc, map.get(TOP), 0, 1);    // (8) TOP - Front Right
-        uv(acc, map.get(FRONT), 0, 1);  // (9) FRONT - Top Left
-        uv(acc, map.get(LEFT), 1, 1);   // (10) LEFT - Front Top
-        uv(acc, map.get(TOP), 1, 1);    // (11) TOP - Front Left
-        uv(acc, map.get(LEFT), 0, 0);   // (12) LEFT - Back Bottom
-        uv(acc, map.get(BOTTOM), 1, 1); // (13) BOTTOM - Back Left
-        uv(acc, map.get(BACK), 1, 0);   // (14) BACK - Bottom Left
-        uv(acc, map.get(BOTTOM), 0, 1); // (15) BOTTOM - Back Right
-        uv(acc, map.get(BACK), 0, 0);   // (16) BACK - Bottom Right
-        uv(acc, map.get(RIGHT), 1, 0);  // (17) RIGHT - Back Bottom
-        uv(acc, map.get(BACK), 0, 1);   // (18) BACK - Top Right
-        uv(acc, map.get(RIGHT), 1, 1);  // (19) RIGHT - Back Top
-        uv(acc, map.get(TOP), 0, 0);    // (20) TOP - Back Right
-        uv(acc, map.get(LEFT), 0, 1);   // (21) LEFT - Back Top
-        uv(acc, map.get(BACK), 1, 1);   // (22) BACK - Top Left
-        uv(acc, map.get(TOP), 1, 0);    // (23) TOP - Back Left
-
-        return acc;
-    }
-
-    private void uv(Accessor acc, Face face, int w, int h) {
+    private static void uv(Atlas atlas, Accessor acc, Face face, int w, int h) {
+        if (face == null) {
+            acc.add(0, 0);
+            return;
+        }
         var rotate = face.rotation() % 4;
         var uv = atlas.get(face);
         
@@ -182,46 +152,15 @@ public class GltfBuilder {
     }
 
     /**
-     * Organize the given faces into a map to retrieve any face by its
-     * name, filling missing ones using 'Transparent' texture
-     * @param faces the faces to organize
-     * @return the map
-     */
-    private EnumMap<FaceName, Face> mapFaces(Collection<Face> faces) {
-        var map = new EnumMap<FaceName, Face>(FaceName.class);
-
-        /* Put all given faces in the map */
-        for (var face : faces) {
-            map.put(face.name(), face);
-        }
-
-        /* Fill missing faces with transparent */
-        for (var name : FaceName.values()) {
-            map.computeIfAbsent(name, n ->
-                map.put(n, new Face(n, 0, 0, 1, 1, 0, ModelTexture.TRANSPARENT))
-            );
-        }
-        return map;
-    }
-
-
-    /**
      * Build one cube indices accessor
      * @return the indices accessor
      */
     private Accessor indicesAccessor() {
         var buffer = gltf.getBuffer("Mesh");
         var view = buffer.newView(Target.ELEMENT_ARRAY_BUFFER);
-        var acc = view.newAccessor(Type.SCALAR, ComponentType.UNSIGNED_SHORT);
+        var acc = view.newAccessor(SCALAR, UNSIGNED_SHORT);
 
-        acc.add(
-             3,  0,  6,   6,  0,  9, // Front
-            10,  1, 21,   1, 12, 21, // Left
-             2,  4, 15,  13,  2, 15, // Bottom
-            18, 22, 14,  16, 18, 14, // Back
-            19, 17,  5,   7, 19,  5, // Right
-            23, 20, 11,  20,  8, 11  // Top
-        );
+        acc.add(1, 0, 2,  2, 0, 3);
 
         return acc;
     }
@@ -230,23 +169,124 @@ public class GltfBuilder {
      * Build one cube normals accessor
      * @return the normals accessor
      */
-    private Accessor normalsAccessor() {
+    private EnumMap<FaceName, Accessor> initNormals() {
+        var map = new EnumMap<FaceName, Accessor>(FaceName.class);
         var buffer = gltf.getBuffer("Mesh");
+
         var view = buffer.newView(Target.ARRAY_BUFFER);
-        var acc = view.newAccessor(Type.VEC3, ComponentType.FLOAT);
+        map.put(FaceName.FRONT, view.newAccessor(VEC3, FLOAT)
+            .add(0, 0, -1,  0, 0, -1,  0, 0, -1,  0, 0, -1f));
+        view = buffer.newView(Target.ARRAY_BUFFER);
+        map.put(FaceName.LEFT, view.newAccessor(VEC3, FLOAT)
+            .add(-1, 0, 0,  -1, 0, 0,  -1, 0, 0,  -1, 0, 0f));
+        view = buffer.newView(Target.ARRAY_BUFFER);
+        map.put(FaceName.BOTTOM, view.newAccessor(VEC3, FLOAT)
+            .add(0, -1, 0,  0, -1, 0,  0, -1, 0,  0, -1, 0f));
+        view = buffer.newView(Target.ARRAY_BUFFER);
+        map.put(FaceName.BACK, view.newAccessor(VEC3, FLOAT)
+            .add(0, 0,  1,  0, 0,  1,  0, 0,  1,  0, 0,  1f));
+        view = buffer.newView(Target.ARRAY_BUFFER);
+        map.put(FaceName.RIGHT, view.newAccessor(VEC3, FLOAT)
+            .add( 1, 0, 0,   1, 0, 0,   1, 0, 0,   1, 0, 0f));
+        view = buffer.newView(Target.ARRAY_BUFFER);
+        map.put(FaceName.TOP, view.newAccessor(VEC3, FLOAT)
+            .add(0,  1, 0,  0,  1, 0,  0,  1, 0,  0,  1, 0f));
 
-        acc.add(
-            0, 0, -1,   1, 0, 0,  0, -1, 0, // Front Right Bottom
-            0, 0, -1,  0, -1, 0,  -1, 0, 0, // Front Bottom Left
-            0, 0, -1,  -1, 0, 0,  0,  1, 0, // Front Left Top
-            0, 0, -1,   1, 0, 0,  0,  1, 0, // Front Right Top
-             1, 0, 0,  0, -1, 0,  0, 0,  1, // Right Bottom Back
-            0, -1, 0,  0, 0,  1,  -1, 0, 0, // Bottom Back Left
-            0, 0,  1,  -1, 0, 0,  0,  1, 0, // Back Left Top
-             1, 0, 0,  0, 0,  1,  0,  1, 0f  // Right Back Top
-        );
+        return map;
+    }
 
-        return acc;
+    /**
+     * Build a map with position generators for each face
+     * @return the positions generators
+     */
+    private static EnumMap<FaceName, Positions> initPositions() {
+        var map = new EnumMap<FaceName, Positions>(FaceName.class);
+
+        map.put(FaceName.FRONT, (acc, fx, fy, fz, tx, ty, tz) -> acc.add(
+            fx, fy, fz, // (0) Front Bottom Left
+            tx, fy, fz, // (3) Front Bottom Right
+            tx, ty, fz, // (6) Front Top Right
+            fx, ty, fz  // (9) Front Top Left
+        ));
+        map.put(FaceName.LEFT, (acc, fx, fy, fz, tx, ty, tz) -> acc.add(
+            fx, fy, tz, // (12) Back Bottom Left
+            fx, fy, fz, // (1) Front Bottom Left
+            fx, ty, fz, // (10) Front Top Left
+            fx, ty, tz  // (21) Back Top Left
+        ));
+        map.put(FaceName.BOTTOM, (acc, fx, fy, fz, tx, ty, tz) -> acc.add(
+            fx, fy, tz, // (13) Back Bottom Left
+            tx, fy, tz, // (15) Back Bottom Right
+            tx, fy, fz, // (4) Front Bottom Right
+            fx, fy, fz  // (2) Front Bottom Left
+        ));
+        map.put(FaceName.BACK, (acc, fx, fy, fz, tx, ty, tz) -> acc.add(
+            tx, fy, tz, // (16) Back Bottom Right
+            fx, fy, tz, // (14) Back Bottom Left
+            fx, ty, tz, // (22) Back Top Left
+            tx, ty, tz  // (18) Back Top Right
+        ));
+        map.put(FaceName.RIGHT, (acc, fx, fy, fz, tx, ty, tz) -> acc.add(
+            tx, fy, fz, // (5) Front Bottom Right
+            tx, fy, tz, // (17) Back Bottom Right
+            tx, ty, tz, // (19) Back Top Right
+            tx, ty, fz  // (7) Front Top Right
+        ));
+        map.put(FaceName.TOP, (acc, fx, fy, fz, tx, ty, tz) -> acc.add(
+            tx, ty, tz, // (20) Back Top Right
+            fx, ty, tz, // (23) Back Top Left
+            fx, ty, fz, // (11) Front Top Left
+            tx, ty, fz  // (8) Front Top Right
+        ));
+
+        return map;
+    }
+
+    /**
+     * Build a map with UVs generators for each face
+     * @return the UVs generators
+     */
+    private static EnumMap<FaceName, UVs> initUVs() {
+        var map = new EnumMap<FaceName, UVs>(FaceName.class);
+
+        map.put(FaceName.FRONT, (atlas, acc, face) -> {
+            uv(atlas, acc, face, 0, 0);  // (0) FRONT - Bottom Left
+            uv(atlas, acc, face, 1, 0);  // (3) FRONT - Bottom Right
+            uv(atlas, acc, face, 1, 1);  // (6) FRONT - Top Right
+            uv(atlas, acc, face, 0, 1);  // (9) FRONT - Top Left
+        });
+        map.put(FaceName.LEFT, (atlas, acc, face) -> {
+            uv(atlas, acc, face, 0, 0);   // (12) LEFT - Back Bottom
+            uv(atlas, acc, face, 1, 0);   // (1) LEFT - Front Bottom
+            uv(atlas, acc, face, 1, 1);   // (10) LEFT - Front Top
+            uv(atlas, acc, face, 0, 1);   // (21) LEFT - Back Top
+        });
+        map.put(FaceName.BOTTOM, (atlas, acc, face) -> {
+            uv(atlas, acc, face, 1, 1); // (13) BOTTOM - Back Left
+            uv(atlas, acc, face, 0, 1); // (15) BOTTOM - Back Right
+            uv(atlas, acc, face, 0, 0); // (4) BOTTOM - Front Right
+            uv(atlas, acc, face, 1, 0); // (2) BOTTOM - Front Left
+        });
+        map.put(FaceName.BACK, (atlas, acc, face) -> {
+            uv(atlas, acc, face, 0, 0);   // (16) BACK - Bottom Right
+            uv(atlas, acc, face, 1, 0);   // (14) BACK - Bottom Left
+            uv(atlas, acc, face, 1, 1);   // (22) BACK - Top Left
+            uv(atlas, acc, face, 0, 1);   // (18) BACK - Top Right
+        });
+        map.put(FaceName.RIGHT, (atlas, acc, face) -> {
+            uv(atlas, acc, face, 0, 0);  // (5) RIGHT - Front Bottom
+            uv(atlas, acc, face, 1, 0);  // (17) RIGHT - Back Bottom
+            uv(atlas, acc, face, 1, 1);  // (19) RIGHT - Back Top
+            uv(atlas, acc, face, 0, 1);  // (7) RIGHT - Front Top
+        });
+        map.put(FaceName.TOP, (atlas, acc, face) -> {
+            uv(atlas, acc, face, 0, 0);    // (20) TOP - Back Right
+            uv(atlas, acc, face, 1, 0);    // (23) TOP - Back Left
+            uv(atlas, acc, face, 1, 1);    // (11) TOP - Front Left
+            uv(atlas, acc, face, 0, 1);    // (8) TOP - Front Right
+        });
+
+        return map;
     }
 
     /**
@@ -298,5 +338,16 @@ public class GltfBuilder {
      */
     public static void setDefaultPack(Path location) {
         ModelParser.setDefaultPack(location);
+    }
+
+
+    @FunctionalInterface
+    private interface Positions {
+        public void add(Accessor acc, float fx, float fy, float fz, float tx, float ty, float tz);
+    }
+
+    @FunctionalInterface
+    private interface UVs {
+        public void add(Atlas atlas, Accessor acc, Face face);
     }
 }

@@ -232,6 +232,22 @@ public class Gltf {
     }
 
     /**
+     * Finds a material with the given path or creates a new one if not
+     * existing yet.
+     * @param path the path of the material to get (image)
+     * @return the material
+     */
+    public Material getMaterial(Path path) {
+        return materials.computeIfAbsent(path, p -> {
+            var image = new Image(p, images.size());
+            images.add(image);
+            var texture = new Texture(image, textures.size());
+            textures.add(texture);
+            return new Material(texture, materials.size());
+        });
+    }
+
+    /**
      * Format of the file header
      * @param generator author mark
      * @param version GLTF file version
