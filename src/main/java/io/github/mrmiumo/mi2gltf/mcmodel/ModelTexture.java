@@ -10,15 +10,14 @@ import java.nio.file.Path;
 
 import javax.imageio.ImageIO;
 
+import io.github.mrmiumo.mi2gltf.textures.Image;
+
 /**
  * Utility class that holds Minecraft model texture informations
  */
 public class ModelTexture {
     /** The default '#missing' texture */
-    public static final ModelTexture MISSING = new ModelTexture("#missing");
-    
-    /** The default '#transparent' texture */
-    public static final ModelTexture TRANSPARENT = new ModelTexture("#transparent");
+    public static final ModelTexture MISSING = new ModelTexture();
     private final Path path;
 
     /** The image data */
@@ -55,27 +54,21 @@ public class ModelTexture {
         return new ModelTexture(path, img, w, h);
     }
 
-    private ModelTexture(String code) {
-        path = Path.of(code);
-        if ("#missing".equals(code)) {
-            width = 2;
-            height = 2;
+    private ModelTexture() {
+        path = Path.of("#missing");
+        width = 2;
+        height = 2;
 
-            /* Draws the default 'Not renderable' texture */
-            img = new BufferedImage(2, 2, BufferedImage.TYPE_INT_ARGB);
-            var g = img.createGraphics();
-            g.setColor(Color.BLACK);
-            g.fillRect(0, 0, 1, 1);
-            g.fillRect(1, 1, 1, 1);
-            g.setColor(Color.MAGENTA);
-            g.fillRect(1, 0, 1, 1);
-            g.fillRect(0, 1, 1, 1);
-            g.dispose();
-        } else {
-            width = 1;
-            height = 1;
-            img = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
-        }
+        /* Draws the default 'Not renderable' texture */
+        img = new BufferedImage(2, 2, BufferedImage.TYPE_INT_ARGB);
+        var g = img.createGraphics();
+        g.setColor(Color.BLACK);
+        g.fillRect(0, 0, 1, 1);
+        g.fillRect(1, 1, 1, 1);
+        g.setColor(Color.MAGENTA);
+        g.fillRect(1, 0, 1, 1);
+        g.fillRect(0, 1, 1, 1);
+        g.dispose();
     }
 
     private ModelTexture(Path path, BufferedImage img, int width, int height) {
@@ -96,6 +89,16 @@ public class ModelTexture {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /**
+     * Converts this model texture into a GLTF Image
+     * @param index the index of the image to create
+     * @return the image
+     */
+    public Image toImage(int index) {
+        if (this == MISSING) return new Image(img, index);
+        return new Image(path, index);
     }
 
     /**

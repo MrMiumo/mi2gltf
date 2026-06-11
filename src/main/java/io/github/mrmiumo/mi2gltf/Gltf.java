@@ -11,12 +11,13 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+
+import io.github.mrmiumo.mi2gltf.mcmodel.ModelTexture;
 import io.github.mrmiumo.mi2gltf.nodes.Accessor;
 import io.github.mrmiumo.mi2gltf.nodes.Buffer;
 import io.github.mrmiumo.mi2gltf.nodes.BufferView;
 import io.github.mrmiumo.mi2gltf.nodes.Mesh;
 import io.github.mrmiumo.mi2gltf.nodes.Node;
-import io.github.mrmiumo.mi2gltf.textures.Atlas;
 import io.github.mrmiumo.mi2gltf.textures.Image;
 import io.github.mrmiumo.mi2gltf.textures.Material;
 import io.github.mrmiumo.mi2gltf.textures.Sampler;
@@ -214,32 +215,14 @@ public class Gltf {
     }
 
     /**
-     * Creates a new material from the given atlas
-     * @param atlas the atlas to save
-     * @return the corresponding Material
-     */
-    public Material setAtlas(Atlas atlas) {
-        var image = new Image(atlas.image(), images.size());
-        images.add(image);
-
-        var texture = new Texture(image, textures.size());
-        textures.add(texture);
-
-        var material = new Material(texture, materials.size());
-        materials.put(Path.of("#atlas"), material);
-
-        return material;
-    }
-
-    /**
      * Finds a material with the given path or creates a new one if not
      * existing yet.
      * @param path the path of the material to get (image)
      * @return the material
      */
-    public Material getMaterial(Path path) {
-        return materials.computeIfAbsent(path, p -> {
-            var image = new Image(p, images.size());
+    public Material getMaterial(ModelTexture model) {
+        return materials.computeIfAbsent(model.path(), p -> {
+            var image = model.toImage(images.size());
             images.add(image);
             var texture = new Texture(image, textures.size());
             textures.add(texture);

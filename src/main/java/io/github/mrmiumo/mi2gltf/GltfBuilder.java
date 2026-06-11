@@ -26,8 +26,6 @@ import io.github.mrmiumo.mi2gltf.nodes.Accessor;
 import io.github.mrmiumo.mi2gltf.nodes.BufferView.Target;
 import io.github.mrmiumo.mi2gltf.nodes.Mesh;
 import io.github.mrmiumo.mi2gltf.nodes.Node;
-import io.github.mrmiumo.mi2gltf.textures.Atlas;
-import io.github.mrmiumo.mi2gltf.textures.Material;
 
 /**
  * Main class used to convert from Minecraft models to GLTF files.
@@ -43,8 +41,6 @@ public class GltfBuilder {
     private final Gltf gltf = new Gltf();
     private final Accessor indicesAcc = indicesAccessor();
     private final EnumMap<FaceName, Accessor> normals = initNormals();
-    private final Atlas atlas;
-    private final Material atlasMaterial;
 
     private boolean pretty = false;
 
@@ -61,14 +57,6 @@ public class GltfBuilder {
     }
 
     private GltfBuilder(Collection<Cube> cubes) {
-        var textures = cubes.stream()
-            .flatMap(c -> c.faces().stream())
-            .map(Face::texture)
-            .distinct()
-            .toList();
-        atlas = new Atlas(textures);
-        atlasMaterial = gltf.setAtlas(atlas);
-
         cubes.forEach(this::add);
     }
 
@@ -106,6 +94,7 @@ public class GltfBuilder {
      */
     @SuppressWarnings("java:S1659")
     private void addFace(Mesh mesh, Vec from, Vec to, Face face) {
+        if (face.texture() == null) return;
         var buffer = gltf.getBuffer("Mesh");
 
         /* Positions */
@@ -119,34 +108,34 @@ public class GltfBuilder {
         /* Texture */
         view = buffer.newView(Target.ARRAY_BUFFER);
         var texture = view.newAccessor(VEC2, FLOAT);
-        UVS.get(face.name()).add(atlas, texture, face);
+        UVS.get(face.name()).add(texture, face);
 
         /* Add to mesh */
-        mesh.addPrimitive(indicesAcc, positions, normals.get(face.name()), texture, atlasMaterial);
+        var material = gltf.getMaterial(face.texture());
+        mesh.addPrimitive(indicesAcc, positions, normals.get(face.name()), texture, material);
     }
 
-    private static void uv(Atlas atlas, Accessor acc, Face face, int w, int h) {
+    private static void uv(Accessor acc, Face face, int w, int h) {
         if (face == null) {
             acc.add(0, 0);
             return;
         }
         var rotate = face.rotation() % 4;
-        var uv = atlas.get(face);
         
         float u;
         float v;
         if (rotate == 0) {
-            u = uv.fromX() * w + uv.toX() * (1-w);
-            v = uv.fromY() * h + uv.toY() * (1-h);
+            u = face.fromX() * w + face.toX() * (1-w);
+            v = face.fromY() * h + face.toY() * (1-h);
         } else if (rotate == 1) {
-            u = uv.fromX() * h + uv.toX() * (1-h);
-            v = uv.fromY() * (1-w) + uv.toY() * w;
+            u = face.fromX() * h + face.toX() * (1-h);
+            v = face.fromY() * (1-w) + face.toY() * w;
         } else if (rotate == 2) {
-            u = uv.fromX() * (1-w) + uv.toX() * w;
-            v = uv.fromY() * (1-h) + uv.toY() * h;
+            u = face.fromX() * (1-w) + face.toX() * w;
+            v = face.fromY() * (1-h) + face.toY() * h;
         } else {
-            u = uv.fromX() * (1-h) + uv.toX() * h;
-            v = uv.fromY() * w + uv.toY() * (1-w);
+            u = face.fromX() * (1-h) + face.toX() * h;
+            v = face.fromY() * w + face.toY() * (1-w);
         }
         acc.add(u, v);
     }
@@ -249,41 +238,41 @@ public class GltfBuilder {
     private static EnumMap<FaceName, UVs> initUVs() {
         var map = new EnumMap<FaceName, UVs>(FaceName.class);
 
-        map.put(FaceName.FRONT, (atlas, acc, face) -> {
-            uv(atlas, acc, face, 0, 0);  // (0) FRONT - Bottom Left
-            uv(atlas, acc, face, 1, 0);  // (3) FRONT - Bottom Right
-            uv(atlas, acc, face, 1, 1);  // (6) FRONT - Top Right
-            uv(atlas, acc, face, 0, 1);  // (9) FRONT - Top Left
+        map.put(FaceName.FRONT, (acc, face) -> {
+            uv(acc, face, 0, 0);  // (0) FRONT - Bottom Left
+            uv(acc, face, 1, 0);  // (3) FRONT - Bottom Right
+            uv(acc, face, 1, 1);  // (6) FRONT - Top Right
+            uv(acc, face, 0, 1);  // (9) FRONT - Top Left
         });
-        map.put(FaceName.LEFT, (atlas, acc, face) -> {
-            uv(atlas, acc, face, 0, 0);   // (12) LEFT - Back Bottom
-            uv(atlas, acc, face, 1, 0);   // (1) LEFT - Front Bottom
-            uv(atlas, acc, face, 1, 1);   // (10) LEFT - Front Top
-            uv(atlas, acc, face, 0, 1);   // (21) LEFT - Back Top
+        map.put(FaceName.LEFT, (acc, face) -> {
+            uv(acc, face, 0, 0);   // (12) LEFT - Back Bottom
+            uv(acc, face, 1, 0);   // (1) LEFT - Front Bottom
+            uv(acc, face, 1, 1);   // (10) LEFT - Front Top
+            uv(acc, face, 0, 1);   // (21) LEFT - Back Top
         });
-        map.put(FaceName.BOTTOM, (atlas, acc, face) -> {
-            uv(atlas, acc, face, 1, 1); // (13) BOTTOM - Back Left
-            uv(atlas, acc, face, 0, 1); // (15) BOTTOM - Back Right
-            uv(atlas, acc, face, 0, 0); // (4) BOTTOM - Front Right
-            uv(atlas, acc, face, 1, 0); // (2) BOTTOM - Front Left
+        map.put(FaceName.BOTTOM, (acc, face) -> {
+            uv(acc, face, 1, 1); // (13) BOTTOM - Back Left
+            uv(acc, face, 0, 1); // (15) BOTTOM - Back Right
+            uv(acc, face, 0, 0); // (4) BOTTOM - Front Right
+            uv(acc, face, 1, 0); // (2) BOTTOM - Front Left
         });
-        map.put(FaceName.BACK, (atlas, acc, face) -> {
-            uv(atlas, acc, face, 0, 0);   // (16) BACK - Bottom Right
-            uv(atlas, acc, face, 1, 0);   // (14) BACK - Bottom Left
-            uv(atlas, acc, face, 1, 1);   // (22) BACK - Top Left
-            uv(atlas, acc, face, 0, 1);   // (18) BACK - Top Right
+        map.put(FaceName.BACK, (acc, face) -> {
+            uv(acc, face, 0, 0);   // (16) BACK - Bottom Right
+            uv(acc, face, 1, 0);   // (14) BACK - Bottom Left
+            uv(acc, face, 1, 1);   // (22) BACK - Top Left
+            uv(acc, face, 0, 1);   // (18) BACK - Top Right
         });
-        map.put(FaceName.RIGHT, (atlas, acc, face) -> {
-            uv(atlas, acc, face, 0, 0);  // (5) RIGHT - Front Bottom
-            uv(atlas, acc, face, 1, 0);  // (17) RIGHT - Back Bottom
-            uv(atlas, acc, face, 1, 1);  // (19) RIGHT - Back Top
-            uv(atlas, acc, face, 0, 1);  // (7) RIGHT - Front Top
+        map.put(FaceName.RIGHT, (acc, face) -> {
+            uv(acc, face, 0, 0);  // (5) RIGHT - Front Bottom
+            uv(acc, face, 1, 0);  // (17) RIGHT - Back Bottom
+            uv(acc, face, 1, 1);  // (19) RIGHT - Back Top
+            uv(acc, face, 0, 1);  // (7) RIGHT - Front Top
         });
-        map.put(FaceName.TOP, (atlas, acc, face) -> {
-            uv(atlas, acc, face, 0, 0);    // (20) TOP - Back Right
-            uv(atlas, acc, face, 1, 0);    // (23) TOP - Back Left
-            uv(atlas, acc, face, 1, 1);    // (11) TOP - Front Left
-            uv(atlas, acc, face, 0, 1);    // (8) TOP - Front Right
+        map.put(FaceName.TOP, (acc, face) -> {
+            uv(acc, face, 0, 0);    // (20) TOP - Back Right
+            uv(acc, face, 1, 0);    // (23) TOP - Back Left
+            uv(acc, face, 1, 1);    // (11) TOP - Front Left
+            uv(acc, face, 0, 1);    // (8) TOP - Front Right
         });
 
         return map;
@@ -325,7 +314,6 @@ public class GltfBuilder {
         var indenter = new DefaultIndenter("    ", DefaultIndenter.SYS_LF);
         var printer = new DefaultPrettyPrinter();
         printer.indentObjectsWith(indenter);
-        printer.indentArraysWith(indenter);
 
         return printer;
     }
@@ -348,6 +336,6 @@ public class GltfBuilder {
 
     @FunctionalInterface
     private interface UVs {
-        public void add(Atlas atlas, Accessor acc, Face face);
+        public void add(Accessor acc, Face face);
     }
 }
