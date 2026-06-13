@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
 
@@ -57,10 +58,10 @@ public class Gltf {
     private final List<Image> images = new ArrayList<>();
 
     /** List of textures */
-    private final List<Texture> textures = new ArrayList<>();
+    private final LinkedHashMap<String, Texture> textures = new LinkedHashMap<>();
 
     /** List of materials */
-    private final HashMap<String, Material> materials = new HashMap<>();
+    private final LinkedHashMap<String, Material> materials = new LinkedHashMap<>();
 
     Gltf() {
         samplers.add(Sampler.instance);
@@ -184,7 +185,11 @@ public class Gltf {
      * @return the list of textures
      */
     @JsonGetter
-    public List<Texture> textures() { return textures; }
+    public Collection<Texture> textures() { 
+        return textures.values().stream()
+            .sorted(Comparator.comparingInt(Texture::index))
+            .toList();
+     }
 
     /**
      * Gets the list of materials
@@ -224,11 +229,24 @@ public class Gltf {
         var key = model.path().toString();
         if (tinted) key += "!tinted";
         return materials.computeIfAbsent(key, k -> {
+            var texture = getTexture(model);
+            return new Material(texture, tinted, materials.size());
+        });
+    }
+
+    /**
+     * Finds a texture with the given ModelTexture or creates a new
+     * one if not existing yet.
+     * @param model the ModelTexture to get (image)
+     * @return the texture
+     */
+    public Texture getTexture(ModelTexture model) {
+        var key = model.path().toString();
+        
+        return textures.computeIfAbsent(key, k -> {
             var image = model.toImage(images.size());
             images.add(image);
-            var texture = new Texture(image, textures.size());
-            textures.add(texture);
-            return new Material(texture, tinted, materials.size());
+            return new Texture(image, textures.size());
         });
     }
 

@@ -27,7 +27,11 @@ public class Material {
         pbrMetallicRoughness = new Pbr(new BaseTexture(texture.index()), 0, 1);
         this.index = index;
         this.tinted = tinted;
-        this.name = texture.path().getFileName().toString().replace(".png", "");
+        if (texture.path() == null) {
+            this.name = "#missing";
+        } else {
+            this.name = texture.path().getFileName().toString().replace(".png", "");
+        }
     }
 
     /**
@@ -55,7 +59,7 @@ public class Material {
      * @return the alpha cutOff value
      */
     @JsonGetter
-    public float alphaCutoff() { return 0.5f; }
+    public float alphaCutoff() { return 0.1f; }
 
     /**
      * The name of the material
