@@ -97,7 +97,7 @@ public class ModelTexture {
      * @return the image
      */
     public Image toImage(int index) {
-        if (this == MISSING) return new Image(img, index);
+        if (this == MISSING || img != null) return new Image(img, index);
         return new Image(path, index);
     }
 
