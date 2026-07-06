@@ -36,4 +36,18 @@ public class Sampler {
      */
     @JsonGetter
     public int minFilter() { return 9728; } // NEAREST(9728) or LINEAR(9729) or MipMap(9984 - 9987)
+    
+    /**
+     * The wrapping mode to use (horizontally). REPEAT by default
+     * @return the S wrapping mode
+     */
+    @JsonGetter
+    public int wrapS() { return 33071; } // CLAMP_TO_EDGE(33071) or MIRRORED_REPEAT(33648) or REPEAT(10497)
+    
+    /**
+     * The wrapping mode to use (vertically). REPEAT by default
+     * @return the T wrapping mode
+     */
+    @JsonGetter
+    public int wrapT() { return 33071; } // CLAMP_TO_EDGE(33071) or MIRRORED_REPEAT(33648) or REPEAT(10497)
 }

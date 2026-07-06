@@ -25,7 +25,7 @@ public class ModelTexture {
     private final Path path;
 
     /** The animations if any */
-    public final ModelAnimation animation;
+    public ModelAnimation animation;
 
     /** The image data */
     private BufferedImage img;
@@ -87,11 +87,12 @@ public class ModelTexture {
      * @return true if this texture is animated, false otherwise
      */
     public boolean setAnimated(boolean animated) {
-        if (animation == null) return animation != null;
+        if (animation == null) return false;
 
         if (animated) {
             /* Interpolate if needed */
             // TODO
+            return true;
         } else {
             /* Keep first frame only */
             var crop = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
@@ -99,9 +100,9 @@ public class ModelTexture {
             g.drawImage(img, 0, 0, null);
             g.dispose();
             img = crop;
+            animation = null;
+            return false;
         }
-
-        return animation != null;
     }
 
     /**
