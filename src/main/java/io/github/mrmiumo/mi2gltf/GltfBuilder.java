@@ -29,15 +29,21 @@ import io.github.mrmiumo.mi2gltf.nodes.Node;
 
 /**
  * Main class used to convert from Minecraft models to GLTF files.
+ * - Load a model file into memory as cubes,
+ * - Convert cubes into triangles,
+ * - Format that into a GLTF file
  */
 public class GltfBuilder {
     /** Oh no, a logger... Just kidding, its fine! */
     private static final Logger LOGGER = LoggerFactory.getLogger(GltfBuilder.class);
-    
+
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final EnumMap<FaceName, Positions> POSITIONS = initPositions();
     private static final EnumMap<FaceName, UVs> UVS = initUVs();
 
+    private Collection<Cube> cubes;
+    private boolean animated = false;
+    private boolean haveAnimation = false;
     private final Gltf gltf = new Gltf();
     private final Accessor indicesAcc = indicesAccessor();
     private final EnumMap<FaceName, Accessor> normals = initNormals();
@@ -57,7 +63,7 @@ public class GltfBuilder {
     }
 
     private GltfBuilder(Collection<Cube> cubes) {
-        cubes.forEach(this::add);
+        this.cubes = cubes;
     }
 
     private GltfBuilder add(Cube cube) {
@@ -95,6 +101,7 @@ public class GltfBuilder {
     @SuppressWarnings("java:S1659")
     private void addFace(Mesh mesh, Vec from, Vec to, Face face) {
         if (face.texture() == null) return;
+        haveAnimation = haveAnimation || face.texture().setAnimated(animated);
         var buffer = gltf.getBuffer("Mesh");
 
         /* Positions */
@@ -288,6 +295,27 @@ public class GltfBuilder {
     }
 
     /**
+     * Enable or disable model animation support. When enabled, if the
+     * model is animated, the Gltf output will contains the animation.
+     * When disable, animated models are converted as static model
+     * using the first frame of the animation.
+     * <p>
+     * Some GLTF viewers may not support <code>KHR_animation_pointer</code>
+     * and <code>KHR_texture_transform</code> extensions. In this case
+     * enabling this feature will probably prevent the model from being
+     * loaded.
+     * <p>
+     * Note that this have no effect on models that does not contains
+     * animated textures.
+     * @param animated true to enable, false to disable (default=false)
+     * @return this builder
+     */
+    public GltfBuilder setAnimated(boolean animated) {
+        this.animated = animated;
+        return this;
+    }
+
+    /**
      * Saves this GLTF file into a file
      * @param p the path of the file to save the model under
      * @return the path
@@ -299,7 +327,15 @@ public class GltfBuilder {
 
     @Override
     public String toString() {
-        gltf.build();
+        if (cubes != null) {
+            cubes.forEach(this::add);
+            if (haveAnimation) {
+                gltf.useExtension("KHR_texture_transform")
+                    .useExtension("KHR_animation_pointer")
+                    .requireExtension("KHR_animation_pointer");
+            }
+            gltf.build();
+        }
         try {
             return pretty
                 ? JSON.writer(getPrettifier()).writeValueAsString(gltf)

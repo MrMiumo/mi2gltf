@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
+import io.github.mrmiumo.mi2gltf.Vec2;
+
 /**
  * Material that can be used to apply textures on a mesh
  */
@@ -11,11 +13,13 @@ public class Material {
 
     private final int index;
 
-    private final Pbr pbrMetallicRoughness;
+    private final Texture texture;
 
     private final String name;
 
     private final boolean tinted;
+
+    private Extension extension = null;
 
     /**
      * Wraps the given texture into a new material 
@@ -24,7 +28,7 @@ public class Material {
      * @param tinted whether this material applies to tintable faces
      */
     public Material(Texture texture, boolean tinted, int index) {
-        pbrMetallicRoughness = new Pbr(new BaseTexture(texture.index()), 0, 1);
+        this.texture = texture;
         this.index = index;
         this.tinted = tinted;
         if (texture.path() == null) {
@@ -32,6 +36,16 @@ public class Material {
         } else {
             this.name = texture.path().getFileName().toString().replace(".png", "");
         }
+    }
+
+    /**
+     * Adds the KHR_texture_transform extension to this material.
+     * @param frames the number of frames contained in the atlas
+     * @return this material
+     */
+    public Material setTextureTransform(int frames) {
+        extension = new Extension(new TextureTransform(Vec2.ZERO, new Vec2(1, 1f/frames)));
+        return this;
     }
 
     /**
@@ -45,7 +59,9 @@ public class Material {
      * @return the PBR value of the material
      */
     @JsonGetter
-    Pbr pbrMetallicRoughness() { return pbrMetallicRoughness; }
+    Pbr pbrMetallicRoughness() {
+        return new Pbr(new BaseTexture(extension, texture.index()), 0, 1);
+    }
 
     /**
      * Enables strict alpha on this material (fully opaque or fully transparent)
@@ -79,7 +95,12 @@ public class Material {
 
     /**
      * Data class to respect the GLTF format
+     * @param extensions the extensions of the material
      * @param index the index of the texture in the textures array
      */
-    private record BaseTexture(int index) {}
+    @JsonInclude(Include.NON_NULL)
+    private record BaseTexture(Extension extensions, int index) {}
+
+    private record Extension(TextureTransform KHR_texture_transform) {}
+    private record TextureTransform(Vec2 offset, Vec2 scale) {}
 }

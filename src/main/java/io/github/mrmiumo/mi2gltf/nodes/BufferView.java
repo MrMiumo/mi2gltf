@@ -140,8 +140,9 @@ public class BufferView {
      * @return the target data type of the view
      */
     @JsonGetter
-    public int target() {
-        return target.value;
+    @JsonInclude(Include.NON_NULL)
+    public Integer target() {
+        return target == null ? null : target.value;
     }
 
     /**

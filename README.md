@@ -5,6 +5,7 @@
 ##### Table of Contents
 - [Setup](#setup)
 - [Convert](#convert)
+- [Animations](#animations)
 - [Future](#future)
 
 
@@ -56,10 +57,39 @@ While it is possible to find some on internet, the most reliable way of getting 
 - Get the `assets` folder and paste it wherever you want: that's the default resources pack!
 
 
+## Animations
+<a name="animations"></a>
+Minecraft models supports animated textures, such as the fire for example. Those are supported by Mi²Gltf disabled by default. When disabled, only the first frame is visible, and the GLTF file contains no animation data (eq. is smaller).
+<br>
+To enable animations in the output file, follow this example:
+```java
+/* Step 1. Call the GLTF builder */
+var gltf = GltfBuilder.from(model);
+
+/* Step 2. Enable animations */
+gltf.setAnimated(true);
+
+/* Step 3. Save to a file */
+gltf.save(Path.of("fire.gltf"));
+```
+
+### Support
+⚠️ Animations relies on `KHR_animation_pointer` and `KHR_texture_transform` extensions. Those are not supported by all engines. Here is a short list of tested engines and their compatibility.
+
+| Engine                                               | Support animations |
+| ---------------------------------------------------- | :----------------: |
+| [model-viewer](https://modelviewer.dev/editor)       | ❌                 |
+| [Babylon.js](https://sandbox.babylonjs.com)          | ✅                 |
+| [Cesium](https://cesium.com/cesiumjs/cesium-viewer)  | ❌                 |
+| [Filament](https://google.github.io/filament/viewer) | ❌                 |
+| [Three.js](https://threejs.org/editor)               | ❌                 |
+> Note that that list may change in the future if any engine decide to add support for those extensions. Also, some plugins or specific versions of the engines may exists and support animations but have not been tested.
+
+
+
 ## Future
 <a name="future"></a>
 *Or what Mi²Gltf can't do yet*
 <br>
 - **GTB** - It will come one day!
 - **Game Compatibility** - So fare, the converter have only been tester with models from `1.20.4`. Compatibility with other versions is not guaranteed, but feel free to report any error!
-- **Animated models** - Only the first frame of each animation is supported yet.

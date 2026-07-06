@@ -4,11 +4,13 @@ import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 import javax.imageio.ImageIO;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.github.mrmiumo.mi2gltf.textures.Image;
 
@@ -16,12 +18,17 @@ import io.github.mrmiumo.mi2gltf.textures.Image;
  * Utility class that holds Minecraft model texture informations
  */
 public class ModelTexture {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ModelTexture.class);
+
     /** The default '#missing' texture */
     public static final ModelTexture MISSING = new ModelTexture();
     private final Path path;
 
+    /** The animations if any */
+    public final ModelAnimation animation;
+
     /** The image data */
-    public final BufferedImage img;
+    private BufferedImage img;
 
     /** The width of the image in pixels */
     public final int width;
@@ -37,21 +44,13 @@ public class ModelTexture {
     public static ModelTexture from(Path path) {
         if (path == null) return MISSING;
 
-        var img = read(path);
-        var w = img.getWidth();
-        var h = img.getHeight();
-
-        if (Files.exists(Path.of(path + ".mcmeta"))) {
-            /* Animated texture */
-            h = w;
-            var crop = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
-            var g = crop.getGraphics();
-            g.drawImage(img, 0, 0, null);
-            g.dispose();
-            img = crop;
+        try {
+            var img = ImageIO.read(Files.newInputStream(path));
+            return new ModelTexture(path, img);
+        } catch (IOException e) {
+            LOGGER.warn("Cannot load texture '{}':", path, e);
+            return MISSING;
         }
-
-        return new ModelTexture(path, img, w, h);
     }
 
     private ModelTexture() {
@@ -69,26 +68,40 @@ public class ModelTexture {
         g.fillRect(1, 0, 1, 1);
         g.fillRect(0, 1, 1, 1);
         g.dispose();
+        animation = null;
     }
 
-    private ModelTexture(Path path, BufferedImage img, int width, int height) {
+    private ModelTexture(Path path, BufferedImage img) throws IOException {
         this.path = path;
         this.img = img;
-        this.width = width;
-        this.height = height;
+        this.animation = ModelAnimation.from(path, img);
+        this.width = animation == null ? img.getWidth() : animation.width();
+        this.height = animation == null ? img.getHeight() : animation.height();
     }
 
     /**
-     * Loads an image, throwing UncheckedIO instead of classic IO.
-     * @param file the file to load
-     * @return the image
+     * Updates this texture depending on the animatable GLTF state.
+     * If this texture is animated and set as not animated, only the
+     * first frame will be kept.
+     * @param animated whether GLTF animation are supported or not
+     * @return true if this texture is animated, false otherwise
      */
-    private static BufferedImage read(Path file) {
-        try {
-            return ImageIO.read(Files.newInputStream(file));
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
+    public boolean setAnimated(boolean animated) {
+        if (animation == null) return animation != null;
+
+        if (animated) {
+            /* Interpolate if needed */
+            // TODO
+        } else {
+            /* Keep first frame only */
+            var crop = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+            var g = crop.getGraphics();
+            g.drawImage(img, 0, 0, null);
+            g.dispose();
+            img = crop;
         }
+
+        return animation != null;
     }
 
     /**
@@ -106,18 +119,6 @@ public class ModelTexture {
      * @return the path of the texture file
      */
     public Path path() { return path; }
-
-    /**
-     * The height of the texture image in pixels
-     * @return the height of the texture
-     */
-    public int height() { return height; }
-
-    /**
-     * The width of the texture image in pixels
-     * @return the width of the texture
-     */
-    public int width() { return width; }
 
     @Override
     public int hashCode() {

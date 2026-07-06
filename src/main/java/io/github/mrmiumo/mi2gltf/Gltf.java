@@ -4,9 +4,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -14,6 +16,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
 import io.github.mrmiumo.mi2gltf.mcmodel.ModelTexture;
 import io.github.mrmiumo.mi2gltf.nodes.Accessor;
+import io.github.mrmiumo.mi2gltf.nodes.Animation;
 import io.github.mrmiumo.mi2gltf.nodes.Buffer;
 import io.github.mrmiumo.mi2gltf.nodes.BufferView;
 import io.github.mrmiumo.mi2gltf.nodes.Mesh;
@@ -31,6 +34,12 @@ public class Gltf {
 
     /** Header of the file with the GLTF version and generator name */
     private final Asset asset = new Asset("Mi²Gltf", "2.0");
+
+    /** List of used extensions in this GLTF */
+    private final Set<String> extensionsUsed = new HashSet<>();
+
+    /** List of extensions required by this GLTF */
+    private final Set<String> extensionsRequired = new HashSet<>();
 
     /** List of scenes (only one by default) */
     private final Scene[] scenes = new Scene[]{ new Scene("Scene") };
@@ -50,6 +59,9 @@ public class Gltf {
     /** List of buffers */
     private final HashMap<String, Buffer> buffers = new HashMap<>();
     
+
+    /** List of animations */
+    private final List<Animation> animations = new ArrayList<>();
 
     /** List of samplers (only one by default) */
     private final List<Sampler> samplers = new ArrayList<>();
@@ -108,11 +120,47 @@ public class Gltf {
     }
 
     /**
+     * Register a new used extension in the file by its name
+     * @param extension the name of the extension
+     * @return this GLTF
+     */
+    public Gltf useExtension(String extension) {
+        extensionsUsed.add(extension);
+        return this;
+    }
+
+    /**
+     * Register a new required extension in the file by its name
+     * @param extension the name of the extension
+     * @return this GLTF
+     */
+    public Gltf requireExtension(String extension) {
+        extensionsRequired.add(extension);
+        return this;
+    }
+
+    /**
      * Gets the file header
      * @return the asset section
      */
     @JsonGetter
     Asset asset() { return asset; }
+
+    /**
+     * Gets the used extensions list
+     * @return the list of used extensions
+     */
+    @JsonGetter
+    @JsonInclude(Include.NON_EMPTY)
+    Set<String> extensionsUsed() { return extensionsUsed; }
+
+    /**
+     * Gets the required extensions list
+     * @return the list of required extensions
+     */
+    @JsonGetter
+    @JsonInclude(Include.NON_EMPTY)
+    Set<String> extensionsRequired() { return extensionsRequired; }
 
     /**
      * Gets the index of the main scene
@@ -165,6 +213,13 @@ public class Gltf {
      */
     @JsonGetter
     public List<Accessor> accessors() { return accessors; }
+
+    /**
+     * Gets the list of animations
+     * @return the list of animations
+     */
+    @JsonGetter
+    public List<Animation> animations() { return animations; }
 
     /**
      * Gets the list of samplers
@@ -230,7 +285,12 @@ public class Gltf {
         if (tinted) key += "!tinted";
         return materials.computeIfAbsent(key, k -> {
             var texture = getTexture(model);
-            return new Material(texture, tinted, materials.size());
+            var material = new Material(texture, tinted, materials.size());
+            if (model.animation != null) {
+                animations.add(new Animation(
+                    model.animation, material, getBuffer("animation")));
+            }
+            return material;
         });
     }
 
