@@ -10,7 +10,6 @@ import io.github.mrmiumo.mi2gltf.mcmodel.ModelAnimation;
 import io.github.mrmiumo.mi2gltf.nodes.Accessor.ComponentType;
 import io.github.mrmiumo.mi2gltf.nodes.Accessor.Type;
 import io.github.mrmiumo.mi2gltf.nodes.AnimationSampler.Interpolation;
-import io.github.mrmiumo.mi2gltf.nodes.BufferView.Target;
 import io.github.mrmiumo.mi2gltf.textures.Material;
 
 /**
@@ -61,9 +60,6 @@ public class Animation {
             }
             t += ft;
         }
-
-        // TODO Generate missing frames if interpolate==true && frametime>1
-        // This should be done in ModelAnimation
 
         return new AnimationSampler(input, output, Interpolation.STEP);
     }

@@ -89,11 +89,7 @@ public class ModelTexture {
     public boolean setAnimated(boolean animated) {
         if (animation == null) return false;
 
-        if (animated) {
-            /* Interpolate if needed */
-            // TODO
-            return true;
-        } else {
+        if (!animated) {
             /* Keep first frame only */
             var crop = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
             var g = crop.getGraphics();
@@ -103,6 +99,7 @@ public class ModelTexture {
             animation = null;
             return false;
         }
+        return true;
     }
 
     /**
@@ -111,7 +108,8 @@ public class ModelTexture {
      * @return the image
      */
     public Image toImage(int index) {
-        if (this == MISSING || img != null) return new Image(img, index);
+        var image = animation == null ? img : animation.img();
+        if (this == MISSING || image != null) return new Image(image, index);
         return new Image(path, index);
     }
 
@@ -141,9 +139,10 @@ public class ModelTexture {
      * @return all the pixels of the image
      */
     public int[] pixels() {
+        var image = animation == null ? img : animation.img();
         var argb = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         var g = argb.createGraphics();
-        g.drawImage(img, 0, 0, null);
+        g.drawImage(image, 0, 0, null);
         g.dispose();
         return ((DataBufferInt)argb.getRaster().getDataBuffer()).getData();
     }
