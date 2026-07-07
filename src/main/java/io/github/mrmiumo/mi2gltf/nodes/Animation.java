@@ -1,5 +1,6 @@
 package io.github.mrmiumo.mi2gltf.nodes;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
@@ -18,9 +19,9 @@ import io.github.mrmiumo.mi2gltf.textures.Material;
 @JsonInclude(Include.NON_EMPTY)
 public class Animation {
 
-    private final List<AnimationSampler> samplers;
+    private final List<AnimationSampler> samplers = new ArrayList<>();
     
-    private final List<AnimationChannel> channels;
+    private final List<AnimationChannel> channels = new ArrayList<>();
 
     /**
      * Converts a ModelAnimation into a GLTF Animation
@@ -29,10 +30,25 @@ public class Animation {
      * @param buffer the buffer to store the animation into
      */
     public Animation(ModelAnimation animation, Material material, Buffer buffer) {
-        var sampler = sampler(animation , buffer);
+        var sampler = sampler(animation, buffer);
         material.setTextureTransform(animation.atlasSize());
-        samplers = List.of(sampler);
-        channels = List.of(new AnimationChannel(sampler, material));
+        samplers.add(sampler);
+        channels.add(new AnimationChannel(sampler, material));
+    }
+
+    /**
+     * Adds a new animation channel to this animation
+     * @param animation the Minecraft animation data
+     * @param material the material to animate
+     * @param buffer the buffer to store the animation into
+     * @return this animation
+     */
+    public Animation add(ModelAnimation animation, Material material, Buffer buffer) {
+        var sampler = sampler(animation, buffer);
+        material.setTextureTransform(animation.atlasSize());
+        samplers.add(sampler);
+        channels.add(new AnimationChannel(sampler, material));
+        return this;
     }
 
     /**
@@ -42,7 +58,7 @@ public class Animation {
      * @param buffer the buffer to store the keyframes into
      * @return the sampler
      */
-    private static AnimationSampler sampler(ModelAnimation animation, Buffer buffer) {
+    private AnimationSampler sampler(ModelAnimation animation, Buffer buffer) {
         /* Initialize buffers */
         var ft = 0.05f * animation.frametime(); // frametime in seconds
         var view = buffer.newView(null);
@@ -60,8 +76,12 @@ public class Animation {
             }
             t += ft;
         }
+        input.add(t);
+        output.add(0f, prev * y);
 
-        return new AnimationSampler(input, output, Interpolation.STEP);
+        var sampler = new AnimationSampler(input, output, Interpolation.STEP);
+        sampler.setIndex(samplers.size());
+        return sampler;
     }
 
 

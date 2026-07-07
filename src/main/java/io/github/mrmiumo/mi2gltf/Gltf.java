@@ -61,7 +61,7 @@ public class Gltf {
     
 
     /** List of animations */
-    private final List<Animation> animations = new ArrayList<>();
+    private Animation animation = null;
 
     /** List of samplers (only one by default) */
     private final List<Sampler> samplers = new ArrayList<>();
@@ -219,7 +219,9 @@ public class Gltf {
      * @return the list of animations
      */
     @JsonGetter
-    public List<Animation> animations() { return animations; }
+    public List<Animation> animations() {
+        return animation != null ? List.of(animation) : List.of();
+    }
 
     /**
      * Gets the list of samplers
@@ -287,8 +289,10 @@ public class Gltf {
             var texture = getTexture(model);
             var material = new Material(texture, tinted, materials.size());
             if (model.animation != null) {
-                animations.add(new Animation(
-                    model.animation, material, getBuffer("animation")));
+                var buffer = getBuffer("animation");
+                this.animation = this.animation == null
+                    ? new Animation(model.animation, material, buffer)
+                    : this.animation.add(model.animation, material, buffer);
             }
             return material;
         });
