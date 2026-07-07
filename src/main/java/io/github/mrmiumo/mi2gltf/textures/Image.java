@@ -53,10 +53,11 @@ public class Image {
     /**
      * Creates a new image from a BufferedImage
      * @param img the data of the image
+     * @param path to get the image name (nullable)
      * @param index the index of this image in the images array
      */
-    public Image(BufferedImage img, int index) {
-        this.path = null;
+    public Image(BufferedImage img, Path path, int index) {
+        this.path = path;
         this.index = index;
         this.img = Objects.requireNonNull(img);
     }
@@ -80,7 +81,7 @@ public class Image {
     @JsonGetter
     public String uri() {
         try {
-            if (path == null) return uriFromImage();
+            if (img != null) return uriFromImage();
             return uriFromPath();
         } catch (IOException e) {
             throw new UncheckedIOException(e);

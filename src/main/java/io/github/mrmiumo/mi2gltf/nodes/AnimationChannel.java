@@ -41,7 +41,7 @@ public class AnimationChannel {
      * @param extensions the extension that point to the texture to animate
      * @param path the name of the animated property
      */
-    static record Target(Extension extensions, String path) {}
+    public static record Target(Extension extensions, String path) {}
 
     static record Extension(Pointer KHR_animation_pointer) {}
 

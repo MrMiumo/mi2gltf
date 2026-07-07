@@ -94,7 +94,7 @@ public class Gltf {
         i = 0 ;
         for (var node : nodes) {
             node.setIndex(i++);
-            if (node.isReferenced()) scene0.addNodes(node);
+            scene0.addNodes(node);
         }
 
         /* Buffers */

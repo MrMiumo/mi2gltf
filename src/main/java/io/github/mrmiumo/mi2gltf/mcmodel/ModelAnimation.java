@@ -10,8 +10,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.stream.IntStream;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Object containing all animation related information read from a
@@ -61,12 +61,12 @@ public record ModelAnimation(
         if (json == null) return null; // Not an animation .mcmeta
 
         /* Animated texture */
-        var interpolate = Boolean.TRUE.equals(json.optional("interpolate").map(JsonNode::asBoolean).orElse(false));
+        boolean interpolate = json.optional("interpolate").map(JsonNode::asBoolean).orElse(false);
         var min = Math.min(img.getWidth(), img.getHeight());
-        var width = json.optional("width").map(JsonNode::asInt).orElseGet(() -> json.has("height") ? img.getWidth() : min);
-        var height = json.optional("height").map(JsonNode::asInt).orElseGet(() -> json.has("width") ? img.getHeight() : min);
+        int width = json.optional("width").map(JsonNode::asInt).orElseGet(() -> json.has("height") ? img.getWidth() : min);
+        int height = json.optional("height").map(JsonNode::asInt).orElseGet(() -> json.has("width") ? img.getHeight() : min);
         var atlasSize = img.getHeight() / height;
-        var frametime = json.optional("frametime").map(JsonNode::asInt).orElse(1);
+        int frametime = json.optional("frametime").map(JsonNode::asInt).orElse(1);
         var frames = json.optional("frames")
             .map(f -> Arrays.stream(f.toString().replace("[", "").replace("]", "").split(",")).mapToInt(Integer::valueOf))
             .orElseGet(() -> IntStream.range(0, atlasSize))
@@ -89,21 +89,9 @@ public record ModelAnimation(
      * @return the model animation with interpolation precomputed
      */
     private static ModelAnimation interpolated(BufferedImage img, int frametime, int[] frames, int width, int height) {
-        var multiplier = 1f * frametime; // Amount of frames to interpolates between each
-        var interpolated = new ArrayList<Interpolated>();
+        var interpolated = getInterpolatedList(frametime, frames);
 
-        /* Generate new frame array with interpolated frames */
-        for (var f = 0 ; f < frames.length ; f++) {
-            var frame = frames[f];
-            var next = frames[(f + 1) % frames.length];
-            interpolated.add(new Interpolated(frame, frame, 1));
-
-            for (var i = 1 ; i < multiplier ; i++) {
-                interpolated.add(new Interpolated(frame, next, (multiplier - i) / multiplier));
-            }
-        }
-
-        /** Generate the atlas image */
+        /* Generate the atlas image */
         var atlasMap = interpolated.stream().distinct().toList();
         var atlas = new BufferedImage(width, height * atlasMap.size(), BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = atlas.createGraphics();
@@ -128,6 +116,29 @@ public record ModelAnimation(
         /* Build the ModelAnimation */
         var newFrames = interpolated.stream().mapToInt(atlasMap::indexOf).toArray();
         return new ModelAnimation(true, width, height, 1, newFrames, atlas, atlasMap.size());
+    }
+
+    /**
+     * Generates new frame array with interpolated frames
+     * @param frametime the base frametime > 1
+     * @param frames the original frames sequence
+     * @return the interpolated array (new frame array with detailed frames)
+     */
+    private static ArrayList<Interpolated> getInterpolatedList(int frametime, int[] frames) {
+        var multiplier = 1f * frametime; // Amount of frames to interpolates between each
+        var interpolated = new ArrayList<Interpolated>();
+
+        /* Generate new frame array with interpolated frames */
+        for (var f = 0; f < frames.length ; f++) {
+            var frame = frames[f];
+            var next = frames[(f + 1) % frames.length];
+            interpolated.add(new Interpolated(frame, frame, 1));
+
+            for (var i = 1 ; i < multiplier ; i++) {
+                interpolated.add(new Interpolated(frame, next, (multiplier - i) / multiplier));
+            }
+        }
+        return interpolated;
     }
 
     private record Interpolated(int from, int to, float opacity) {

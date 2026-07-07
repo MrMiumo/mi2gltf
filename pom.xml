@@ -4,7 +4,7 @@
 
     <groupId>io.github.mrmiumo</groupId>
     <artifactId>mi2gltf</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Miumo's Minecraft converter to GLTF</description>
     <url>https://github.com/MrMiumo/mi2gltf</url>
@@ -51,14 +51,14 @@
     
     <dependencies>
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
+            <groupId>tools.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.19.0</version>
+            <version>3.2.0</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>6.1.0</version>
+            <version>6.1.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>

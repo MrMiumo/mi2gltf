@@ -76,13 +76,18 @@ gltf.save(Path.of("fire.gltf"));
 ### Support
 ⚠️ Animations relies on `KHR_animation_pointer` and `KHR_texture_transform` extensions. Those are not supported by all engines. Here is a short list of tested engines and their compatibility.
 
-| Engine                                               | Support animations |
-| ---------------------------------------------------- | :----------------: |
-| [model-viewer](https://modelviewer.dev/editor)       | ❌                 |
-| [Babylon.js](https://sandbox.babylonjs.com)          | ✅                 |
-| [Cesium](https://cesium.com/cesiumjs/cesium-viewer)  | ❌                 |
-| [Filament](https://google.github.io/filament/viewer) | ❌                 |
-| [Three.js](https://threejs.org/editor)               | ❌                 |
+| Engine                                               | Support animations                              |
+| ---------------------------------------------------- | :---------------------------------------------: |
+| [Babylon.js](https://sandbox.babylonjs.com)          | ✅ Vanilla                                      |
+| [model-viewer](https://modelviewer.dev/editor)       | 🟠 with patched version in example folder |
+| [Three.js](https://threejs.org/editor)               | ✅ with `@needle-tools/three-animation-pointer` |
+| [Cesium](https://cesium.com/cesiumjs/cesium-viewer)  | ❌ Vanilla                                      |
+| [Filament](https://google.github.io/filament/viewer) | ❌ Vanilla                                      |
+
+- ✅ Supported
+- 🟠 Doable but hacky
+- ❌ Not supported
+
 > Note that that list may change in the future if any engine decide to add support for those extensions. Also, some plugins or specific versions of the engines may exists and support animations but have not been tested.
 
 

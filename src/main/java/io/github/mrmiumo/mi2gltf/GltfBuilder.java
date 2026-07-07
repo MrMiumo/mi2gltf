@@ -12,12 +12,11 @@ import java.util.EnumMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.PrettyPrinter;
-import com.fasterxml.jackson.core.util.DefaultIndenter;
-import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import tools.jackson.core.PrettyPrinter;
+import tools.jackson.core.util.DefaultIndenter;
+import tools.jackson.core.util.DefaultPrettyPrinter;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.exc.JsonNodeException;
 import io.github.mrmiumo.mi2gltf.mcmodel.Cube;
 import io.github.mrmiumo.mi2gltf.mcmodel.FaceName;
 import io.github.mrmiumo.mi2gltf.mcmodel.ModelParser;
@@ -41,7 +40,7 @@ public class GltfBuilder {
     private static final EnumMap<FaceName, Positions> POSITIONS = initPositions();
     private static final EnumMap<FaceName, UVs> UVS = initUVs();
 
-    private Collection<Cube> cubes;
+    private final Collection<Cube> cubes;
     private boolean animated = false;
     private boolean haveAnimation = false;
     private final Gltf gltf = new Gltf();
@@ -338,9 +337,9 @@ public class GltfBuilder {
         }
         try {
             return pretty
-                ? JSON.writer(getPrettifier()).writeValueAsString(gltf)
+                ? JSON.writer().with(getPrettifier()).writeValueAsString(gltf)
                 : JSON.writeValueAsString(gltf);
-        } catch (JsonProcessingException e) {
+        } catch (JsonNodeException e) {
             LOGGER.error("Failed to generate GLTF file", e);
             return "{}";
         }
@@ -350,6 +349,7 @@ public class GltfBuilder {
         var indenter = new DefaultIndenter("    ", DefaultIndenter.SYS_LF);
         var printer = new DefaultPrettyPrinter();
         printer.indentObjectsWith(indenter);
+        printer.indentArraysWith(indenter);
 
         return printer;
     }

@@ -1,9 +1,6 @@
 package io.github.mrmiumo.mi2gltf.nodes;
 
-import java.util.ArrayList;
-
 import com.fasterxml.jackson.annotation.JsonGetter;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
@@ -18,9 +15,6 @@ public class Node {
     private Mesh mesh = null;
     private Vec translation = null;
     private float[] rotation = null;
-    private final ArrayList<Node> children = new ArrayList<>();
-
-    private boolean referenced = true;
 
     /**
      * Sets the ID of this Node (eq. its index in the nodes array).
@@ -37,26 +31,6 @@ public class Node {
      * @return the index of the this node
      */
     public int index() { return index; }
-
-    /**
-     * Indicates whether this node should be referenced in the scene
-     * or not.
-     * @param referenced true to reference this node, false otherwise
-     * @return this node
-     */
-    public Node setReferenced(boolean referenced) {
-        this.referenced = referenced;
-        return this;
-    }
-
-    /**
-     * Whether this Node should be referenced in the scene or not.
-     * @return true if the node should be referenced in the scene
-     */
-    @JsonIgnore
-    public boolean isReferenced() {
-        return referenced;
-    }
 
     /**
      * Sets the mesh referenced by this node.
@@ -121,27 +95,6 @@ public class Node {
     @JsonGetter
     public float[] rotation() {
         return rotation;
-    }
-
-    /**
-     * Adds a child to this node.
-     * @param child the child to add to this node
-     * @return this node
-     */
-    public Node addChild(Node child) {
-        children.add(child);
-        return this;
-    }
-
-    /**
-     * Gets this node children indexes.
-     * @return this node children indexes
-     */
-    @JsonGetter
-    @SuppressWarnings("java:S1168")
-    public int[] children() {
-        if (children.isEmpty()) return null;
-        return children.stream().mapToInt(n -> n.index).toArray();
     }
 }
 

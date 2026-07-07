@@ -109,7 +109,7 @@ public class ModelTexture {
      */
     public Image toImage(int index) {
         var image = animation == null ? img : animation.img();
-        if (this == MISSING || image != null) return new Image(image, index);
+        if (this == MISSING || image != null) return new Image(image, path, index);
         return new Image(path, index);
     }
 

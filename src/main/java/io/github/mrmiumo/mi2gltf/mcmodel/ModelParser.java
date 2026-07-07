@@ -17,8 +17,8 @@ import java.nio.file.Path;
 import java.io.IOException;
 import java.io.InputStream;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import io.github.mrmiumo.mi2gltf.Vec;
 
@@ -79,7 +79,7 @@ public class ModelParser {
         
         var parent = json.get("parent");
         var elements = json.get("elements");
-        if (elements == null && parent != null && "item/generated".equals(parent.asText())) {
+        if (elements == null && parent != null && "item/generated".equals(parent.asString())) {
             /* Special parent that generates a model from a single texture */
             parseGenerated();
         } else if (elements == null && parent != null) {
@@ -87,10 +87,10 @@ public class ModelParser {
             var path = file.toAbsolutePath().toString()
                 .replace("\\", "/")
                 .replaceFirst("assets/minecraft/models/.*", "assets/minecraft/models/");
-            parseInternal(resolveSafe(Path.of(path), parent.asText() + ".json"));
+            parseInternal(resolveSafe(Path.of(path), parent.asString() + ".json"));
         } else if (elements != null) {
             /* Normal model */
-            json.get("elements").elements().forEachRemaining(this::parseElement);
+            json.get("elements").forEach(this::parseElement);
         }
     }
 
@@ -108,7 +108,7 @@ public class ModelParser {
     private void parseTextures(JsonNode json) {
         if (json == null) return;
         json.properties().forEach(p -> {
-            var value = p.getValue().asText().replace("minecraft:", "");
+            var value = p.getValue().asString().replace("minecraft:", "");
             Function<String, TextureHolder> mapper;
             if (value.startsWith("#")) {
                 mapper = k -> new TextureHolder(value);
@@ -192,7 +192,7 @@ public class ModelParser {
 
             var angle = rotation.get("angle");
             if (angle != null) {
-                var axis = rotation.get("axis").asText().charAt(0);
+                var axis = rotation.get("axis").asString().charAt(0);
                 cube.rotate((float)angle.asDouble(), axis);
             } else {
                 LOGGER.warn("Unsupported rotation format encountered!!!");
@@ -206,7 +206,7 @@ public class ModelParser {
                 var face = FaceName.from(node.getKey().toLowerCase());
                 var uv = parseUvs(node.getValue().get("uv"));
                 var rotate = parseTextureRotation(node.getValue());
-                var textureId = node.getValue().get("texture").asText();
+                var textureId = node.getValue().get("texture").asString();
                 var texture = textures.get(textureId);
                 var path = texture == null ? ModelTexture.MISSING : texture.get();
                 var tinted = node.getValue().get("tintindex") != null;
@@ -238,11 +238,10 @@ public class ModelParser {
      * @return the corresponding vector
      */
     private static Vec parseVector(JsonNode node) {
-        var elements = node.elements();
         return new Vec(
-            (float)elements.next().asDouble(),
-            (float)elements.next().asDouble(),
-            (float)elements.next().asDouble()
+            (float)node.get(0).asDouble(),
+            (float)node.get(1).asDouble(),
+            (float)node.get(2).asDouble()
         );
     }
 
@@ -252,9 +251,8 @@ public class ModelParser {
      * @return the list of the numbers
      */
     private static List<Float> parseUvs(JsonNode node) {
-        var elements = node.elements();
         var list = new ArrayList<Float>();
-        elements.forEachRemaining(d -> list.add((float)d.asDouble()));
+        node.forEach(d -> list.add((float)d.asDouble()));
         return list;
     }
 
